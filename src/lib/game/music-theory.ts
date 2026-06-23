@@ -178,25 +178,36 @@ const POP_PROG_3: ChordDef[] = [
 ]
 
 // ====================================================================
-// GENRE 5: DOOM / GOTHIC METAL (dark, heavy, tritone)
+// GENRE 5: DOOM / GOTHIC METAL
+// Slow, heavy, dark. Think Black Sabbath, Type O Negative, Sleep,
+// Pallbearer, Sunn O))). Power chords, tritone riffs, low register,
+// minor key with harmonic minor tension.
 // ====================================================================
+
+// Black Sabbath style: i - bVI - bVII - i in E minor (very low)
+// Using power chords (root+5th) with min for tension
 const DOOM_PROG_1: ChordDef[] = [
-  { root: 48, type: 'min',    bassNote: 24, scale: 'harmonicMinor' },
-  { root: 56, type: 'maj',    bassNote: 32, scale: 'lydian' },
-  { root: 58, type: 'maj',    bassNote: 34, scale: 'mixolydian' },
-  { root: 48, type: 'min',    bassNote: 24, scale: 'naturalMinor' },
+  { root: 40, type: 'min',    bassNote: 16, scale: 'harmonicMinor' },  // Em (low E)
+  { root: 48, type: 'maj',    bassNote: 24, scale: 'lydian' },          // C (bVI)
+  { root: 50, type: 'maj',    bassNote: 26, scale: 'mixolydian' },      // D (bVII)
+  { root: 40, type: 'min',    bassNote: 16, scale: 'naturalMinor' },    // Em (i)
 ]
+
+// Type O Negative style: i - iv - bVI - v in B minor (dark, gothic)
 const DOOM_PROG_2: ChordDef[] = [
-  { root: 50, type: 'min',    bassNote: 26, scale: 'harmonicMinor' },
-  { root: 53, type: 'min',    bassNote: 29, scale: 'naturalMinor' },
-  { root: 58, type: 'maj',    bassNote: 34, scale: 'lydian' },
-  { root: 55, type: 'min',    bassNote: 31, scale: 'aeolian' },
+  { root: 47, type: 'min',    bassNote: 23, scale: 'harmonicMinor' },  // Bm
+  { root: 50, type: 'min',    bassNote: 26, scale: 'naturalMinor' },    // Em (iv)
+  { root: 54, type: 'maj',    bassNote: 30, scale: 'lydian' },          // G (bVI)
+  { root: 52, type: 'min',    bassNote: 28, scale: 'aeolian' },         // F#m (v)
 ]
+
+// Sleep / Pallbearer style: Tritone riff — the "Devil's interval"
+// D - Ab - D - Ab (tritone alternation, extremely heavy)
 const DOOM_PROG_3: ChordDef[] = [
-  { root: 45, type: 'dim7',   bassNote: 21, scale: 'wholeTone' },
-  { root: 48, type: 'min',    bassNote: 24, scale: 'harmonicMinor' },
-  { root: 51, type: 'aug',    bassNote: 27, scale: 'wholeTone' },
-  { root: 44, type: 'min7b5', bassNote: 20, scale: 'locrian' },
+  { root: 50, type: 'min',    bassNote: 26, scale: 'harmonicMinor' },  // Dm
+  { root: 44, type: 'dim7',   bassNote: 20, scale: 'wholeTone' },      // Abdim7 (tritone)
+  { root: 50, type: 'min',    bassNote: 26, scale: 'naturalMinor' },    // Dm
+  { root: 56, type: 'aug',    bassNote: 32, scale: 'wholeTone' },       // Abaug (tritone)
 ]
 
 // ---- Genre configurations ----
@@ -278,17 +289,17 @@ export const GENRE_CONFIGS: Record<MusicGenre, GenreConfig> = {
   },
   doom: {
     name: 'Doom',
-    description: 'Heavy, dark, gothic. Tritone riffs, low bass.',
+    description: 'Heavy doom metal. Black Sabbath vibes, tritone riffs.',
     progressions: [DOOM_PROG_1, DOOM_PROG_2, DOOM_PROG_3],
-    masterFilterFreq: 2800,
-    reverbAmount: 0.55,
-    delayAmount: 0.35,
-    padVolume: 0.08,
-    bassVolume: 0.45,
-    melodyVolume: 0.16,
-    chordStabVolume: 0.12,
-    melodyOscType: 'sawtooth',
-    bassOscType: 'sawtooth',
+    masterFilterFreq: 2200,     // very dark — muffles everything for that muddy heavy tone
+    reverbAmount: 0.6,          // cavernous — like playing in a cathedral
+    delayAmount: 0.3,           // echo for vast emptiness
+    padVolume: 0.09,            // loud dark drone — atmospheric dread
+    bassVolume: 0.50,           // CRUSHING bass — the defining feature of doom
+    melodyVolume: 0.14,         // buried under the bass — sparse, mournful
+    chordStabVolume: 0.14,      // heavy power chord hits
+    melodyOscType: 'sawtooth',  // harsh, gritty lead
+    bassOscType: 'sawtooth',    // HEAVY sawtooth bass — the crushing tone
   },
 }
 

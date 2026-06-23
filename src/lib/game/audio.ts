@@ -23,6 +23,7 @@ import {
   getChordTonesInRange,
   getScaleTonesInRange,
 } from './music-theory'
+import { MelodyEngineV2 } from './melody-engine-v2'
 
 // Default volumes (overridden by genre config)
 const VOL = {
@@ -61,17 +62,21 @@ export class MusicEngine {
 
   // ---- Music state ----
   private progressionEngine: ProgressionEngine
+  private melodyEngineV2: MelodyEngineV2
+  private useMelodyV2 = true  // use v2 melody engine by default (better style matching)
   private jumpCount = 0
   private currentChord: ChordDef
   private lastMelodyNote = 72  // C5 — pleasant mid-range start
   private lastBassNote = 36    // C2
   private recentMelodyNotes: number[] = []
-  private recentBassNotes: number[] = []  // track bass history to avoid repetition
-  private melodyContour = 0    // smoothed direction for voice leading balance
+  private recentBassNotes: number[] = []
+  private melodyContour = 0
   private running = false
 
   constructor() {
     this.progressionEngine = new ProgressionEngine()
+    this.melodyEngineV2 = new MelodyEngineV2()
+    this.melodyEngineV2.setStyle('lofi')
     this.currentChord = this.progressionEngine.getCurrentChord()
     this.padCurrentChord = this.currentChord
     this.padTargetFreqs = [0, 7, 12].map(i => midiToFreq(this.currentChord.bassNote + i))
@@ -161,6 +166,7 @@ export class MusicEngine {
   /** Set the music genre (lofi, mystic, synthwave). Updates synthesis params live. */
   setGenre(genre: MusicGenre) {
     this.progressionEngine.setGenre(genre)
+    this.melodyEngineV2.setStyle(genre)
     this.currentChord = this.progressionEngine.getCurrentChord()
     this.padCurrentChord = this.currentChord
     this.setPadChord(this.currentChord)
@@ -184,6 +190,15 @@ export class MusicEngine {
     return this.progressionEngine.getGenre()
   }
 
+  /** Toggle between v1 (random) and v2 (style-aware) melody engines */
+  setMelodyEngineV2(enabled: boolean) {
+    this.useMelodyV2 = enabled
+  }
+
+  isMelodyV2(): boolean {
+    return this.useMelodyV2
+  }
+
   start() {
     if (!this.ctx || this.running) return
     this.running = true
@@ -200,6 +215,7 @@ export class MusicEngine {
   resetState() {
     this.jumpCount = 0
     this.progressionEngine.reset()
+    this.melodyEngineV2.reset()
     this.currentChord = this.progressionEngine.getCurrentChord()
     this.padCurrentChord = this.currentChord
     this.lastMelodyNote = 72
@@ -353,6 +369,17 @@ export class MusicEngine {
 
   private playVoiceLedMelody(time?: number) {
     const chord = this.currentChord
+    const t = time ?? this.ctx!.currentTime
+
+    // Use v2 melody engine if enabled (style-aware, less random)
+    if (this.useMelodyV2) {
+      const note = this.melodyEngineV2.nextNote(chord, MELODY_MIN, MELODY_MAX)
+      this.lastMelodyNote = note
+      this.playMelodyVoice(note, 1.0, t)
+      return
+    }
+
+    // Original v1 melody engine (weighted random voice-leading)
     const chordTones = getChordTonesInRange(chord, MELODY_MIN, MELODY_MAX)
     const scaleTones = getScaleTonesInRange(chord, MELODY_MIN, MELODY_MAX)
 

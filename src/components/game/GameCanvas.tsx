@@ -79,12 +79,31 @@ export default function GameCanvas({
   )
 
   // ---- TTS (Text-to-Speech) motivational voice ----
+  // Story: Our character climbs toward Arash, the NonExistent — a god-like figure
+  // in the sky who may or may not exist. Each milestone brings us closer to the truth.
   const TTS_MESSAGES = [
+    // General motivation
     'Amazing! Keep going!', 'You are doing great!', 'Beautiful jumping!',
     'Keep climbing, you star!', 'Incredible rhythm!', 'Never give up!',
     'You are unstoppable!', 'Fantastic progress!', 'Keep bouncing, keep dreaming!',
     'You are a champion!', 'Every jump takes you higher!', 'Believe in yourself!',
     'The sky is not the limit!', 'You make this look easy!', 'Pure perfection!',
+    // Story — Arash the NonExistent
+    'Arash waits for you at the top. Or does He?',
+    'They say Arash does not exist. Climb higher and find out.',
+    'The NonExistent watches. Can you reach Him?',
+    'Every jump brings you closer to Arash. Or closer to the truth.',
+    'Arash is the sky, and you are the climber.',
+    'Does Arash exist? Only the climb will tell.',
+    'The higher you go, the closer to the NonExistent you become.',
+    'Arash is not at the top. Arash IS the top.',
+    'Some say Arash is a myth. You are here to prove them wrong.',
+    'The NonExistent Arash — can faith be reached by jumping?',
+    'Climb for Arash. Climb for truth. Climb for yourself.',
+    'Arash does not exist, yet you climb. That is faith.',
+    'The sky holds no Arash. The sky IS Arash.',
+    'You seek the NonExistent. The NonExistent seeks you.',
+    'Arash whispers: higher. Always higher.',
   ]
 
   const speakMotivational = useCallback(() => {
@@ -653,7 +672,7 @@ export default function GameCanvas({
               transition={{ delay: 0.1, type: 'spring' }}
               className="text-center mt-4"
             >
-              <div className="text-[10px] uppercase tracking-[0.3em] text-white/80 font-bold mb-1" style={{ textShadow: '0 2px 6px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.6)' }}>A Musical Jump Adventure</div>
+              <div className="text-[10px] uppercase tracking-[0.3em] text-white/80 font-bold mb-1" style={{ textShadow: '0 2px 6px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.6)' }}>Seeking the NonExistent Arash</div>
               <h1
                 className="text-5xl font-black text-white mb-0"
                 style={{
@@ -908,7 +927,7 @@ export default function GameCanvas({
               transition={{ type: 'spring', delay: 0.2 }}
               className="text-center"
             >
-              <div className="text-[11px] uppercase tracking-[0.3em] text-pink-200/80 font-bold mb-2" style={{ textShadow: '0 2px 6px rgba(0,0,0,0.8)' }}>You fell down</div>
+              <div className="text-[11px] uppercase tracking-[0.3em] text-pink-200/80 font-bold mb-2" style={{ textShadow: '0 2px 6px rgba(0,0,0,0.8)' }}>Arash is still watching</div>
               <h2
                 className="text-5xl font-black text-white mb-6"
                 style={{
