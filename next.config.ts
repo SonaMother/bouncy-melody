@@ -1,8 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // For APK/web deployment, use standalone output
+  // For static export (Capacitor APK), uncomment the 'export' line below
   output: "standalone",
-  /* config options here */
+  // output: "export",
+  // trailingSlash: true,
+  // images: { unoptimized: true },
   typescript: {
     ignoreBuildErrors: true,
   },

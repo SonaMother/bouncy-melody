@@ -36,6 +36,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
+  const GAME_VERSION = 'v1.0.0'
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -496,6 +497,24 @@ export default function GameCanvas({
         ref={canvasRef}
         className="absolute inset-0 w-full h-full block"
       />
+
+      {/* Version number — always visible, top center */}
+      <div
+        className="absolute top-1 left-1/2 -translate-x-1/2 pointer-events-none"
+        style={{
+          zIndex: 50,
+          opacity: 0.7,
+          fontSize: 10,
+          color: '#ffffff',
+          fontFamily: 'monospace',
+          fontWeight: 700,
+          textShadow: '0 1px 3px rgba(0,0,0,0.9)',
+          whiteSpace: 'nowrap',
+          letterSpacing: '0.05em',
+        }}
+      >
+        {GAME_VERSION}
+      </div>
 
       {/* HUD overlay */}
       {(phase === 'playing' || phase === 'paused') && (

@@ -9,6 +9,10 @@ build/
 dist/
 .bun/
 
+# Capacitor / Android
+android/
+ios/
+
 # Logs
 *.log
 dev.log
