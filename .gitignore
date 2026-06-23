@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+bun.lock
+
+# Build artifacts
+.next/
+out/
+build/
+dist/
+.bun/
+
+# Logs
+*.log
+dev.log
+server.log
+
+# Environment
+.env
+.env.*
+.DS_Store
+
+# Sandbox infrastructure (not part of the game)
+.zscripts/
+skills/
+tool-results/
+examples/
+mini-services/
+scripts/
+download/
+worklog.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
