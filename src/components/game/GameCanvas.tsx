@@ -99,7 +99,7 @@ export default function GameCanvas({
     // Use pre-rendered Kokoro TTS audio files (high quality whispery voice)
     const idx = Math.floor(Math.random() * TTS_MESSAGES.length)
     const msg = TTS_MESSAGES[idx]
-    const audio = new Audio('/tts/tts_' + idx + '.wav')
+    const audio = new Audio('/tts/tts_' + idx + '.ogg')
     audio.volume = 1.0
     audio.play().catch(() => {
       // Fallback to Web Speech API if audio play fails

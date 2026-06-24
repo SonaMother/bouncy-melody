@@ -156,62 +156,60 @@ const SYNTH_PROG_3: ChordDef[] = [
 ]
 
 // ====================================================================
-// GENRE 4: POP (bright, catchy, I-V-vi-IV)
+// GENRE 4: POP (bright, catchy, singable)
+// I-V-vi-IV — the most used progression in pop music history.
+// Pre-composed singable melodies that follow chord tones.
 // ====================================================================
+
+// C - G - Am - F (I-V-vi-IV in C) — THE pop progression
 const POP_PROG_1: ChordDef[] = [
-  { root: 60, type: 'maj9', bassNote: 36, scale: 'major' },
-  { root: 67, type: 'dom9', bassNote: 43, scale: 'mixolydian' },
-  { root: 69, type: 'min9', bassNote: 45, scale: 'aeolian' },
-  { root: 65, type: 'maj9', bassNote: 41, scale: 'lydian' },
+  { root: 60, type: 'maj9', bassNote: 36, scale: 'major' },       // Cmaj9 (I)
+  { root: 67, type: 'dom9', bassNote: 43, scale: 'mixolydian' },   // G9 (V)
+  { root: 69, type: 'min9', bassNote: 45, scale: 'aeolian' },      // Am9 (vi)
+  { root: 65, type: 'maj9', bassNote: 41, scale: 'lydian' },       // Fmaj9 (IV)
 ]
+// G - D - Em - C (I-V-vi-IV in G)
 const POP_PROG_2: ChordDef[] = [
-  { root: 67, type: 'maj9', bassNote: 43, scale: 'major' },
-  { root: 62, type: 'dom9', bassNote: 38, scale: 'mixolydian' },
-  { root: 64, type: 'min9', bassNote: 40, scale: 'aeolian' },
-  { root: 60, type: 'maj9', bassNote: 36, scale: 'lydian' },
+  { root: 67, type: 'maj9', bassNote: 43, scale: 'major' },       // Gmaj9 (I)
+  { root: 62, type: 'dom9', bassNote: 38, scale: 'mixolydian' },   // D9 (V)
+  { root: 64, type: 'min9', bassNote: 40, scale: 'aeolian' },      // Em9 (vi)
+  { root: 60, type: 'maj9', bassNote: 36, scale: 'lydian' },       // Cmaj9 (IV)
 ]
+// D - A - Bm - G (I-V-vi-IV in D)
 const POP_PROG_3: ChordDef[] = [
-  { root: 62, type: 'maj9', bassNote: 38, scale: 'major' },
-  { root: 69, type: 'dom9', bassNote: 45, scale: 'mixolydian' },
-  { root: 71, type: 'min9', bassNote: 47, scale: 'aeolian' },
-  { root: 67, type: 'maj9', bassNote: 43, scale: 'lydian' },
+  { root: 62, type: 'maj9', bassNote: 38, scale: 'major' },       // Dmaj9 (I)
+  { root: 69, type: 'dom9', bassNote: 45, scale: 'mixolydian' },   // A9 (V)
+  { root: 71, type: 'min9', bassNote: 47, scale: 'aeolian' },      // Bm9 (vi)
+  { root: 67, type: 'maj9', bassNote: 43, scale: 'lydian' },       // Gmaj9 (IV)
 ]
 
 // ====================================================================
-// GENRE 5: DOOM / FUNERAL DOOM / EMOTIONAL METAL
-// Beautiful, sad, emotional, heavy. Think Warning, Pallbearer, Yob,
-// Evoken, Shape of Despair. The emotion comes from:
-// - Slow minor progressions with bVI (creates longing/lament)
-// - Minor 6 and minor 9 chords for color and sadness
-// - Descending bass lines (feeling of falling/despair)
-// - Clean melody tones over heavy bass (contrast = emotion)
+// GENRE 5: DOOM / FUNERAL DOOM
+// Beautiful, sad, emotional. Simple progressions, pre-composed melodies.
+// The emotion comes from: minor key, bVI chord (longing), slow tempo,
+// descending melody lines, and clean tone over heavy bass.
 // ====================================================================
 
-// Warning "Watching From a Distance" style: i - bVI - iv - v in D minor
-// This is THE emotional doom progression — bVI creates the "lament" feel
+// i - bVI - iv - v in D minor — the classic lament
 const DOOM_PROG_1: ChordDef[] = [
-  { root: 50, type: 'min9',   bassNote: 26, scale: 'harmonicMinor' },  // Dm9 (i) — sorrowful
-  { root: 57, type: 'maj9',   bassNote: 33, scale: 'lydian' },          // Bbmaj9 (bVI) — longing
-  { root: 53, type: 'min6',   bassNote: 29, scale: 'naturalMinor' },    // Gm6 (iv) — despair
-  { root: 55, type: 'min',    bassNote: 31, scale: 'aeolian' },         // Am (v) — tension
+  { root: 50, type: 'min9',   bassNote: 26, scale: 'harmonicMinor' },  // Dm9 (i)
+  { root: 57, type: 'maj9',   bassNote: 33, scale: 'lydian' },          // Bbmaj9 (bVI)
+  { root: 53, type: 'min6',   bassNote: 29, scale: 'naturalMinor' },    // Gm6 (iv)
+  { root: 55, type: 'min',    bassNote: 31, scale: 'aeolian' },         // Am (v)
 ]
-
-// Pallbearer style: i - bIII - bVII - i in B minor
-// Clean arpeggio feel with descending resolution
+// i - bIII - bVII - i in B minor — hopeful sadness
 const DOOM_PROG_2: ChordDef[] = [
   { root: 47, type: 'min9',   bassNote: 23, scale: 'harmonicMinor' },  // Bm9 (i)
-  { root: 50, type: 'maj7',   bassNote: 26, scale: 'lydian' },          // Dmaj7 (bIII) — hopeful sadness
-  { root: 57, type: 'dom9',   bassNote: 33, scale: 'mixolydian' },      // A9 (bVII) — resolution
-  { root: 47, type: 'min6',   bassNote: 23, scale: 'naturalMinor' },    // Bm6 (i) — final sorrow
+  { root: 50, type: 'maj7',   bassNote: 26, scale: 'lydian' },          // Dmaj7 (bIII)
+  { root: 57, type: 'dom9',   bassNote: 33, scale: 'mixolydian' },      // A9 (bVII)
+  { root: 47, type: 'min6',   bassNote: 23, scale: 'naturalMinor' },    // Bm6 (i)
 ]
-
-// Yob / Evoken style: Slow chromatic descent in C minor
-// i - i(dim5) - bVI - iv — funeral march feel
+// i - bVI - v - i in C minor — funeral march
 const DOOM_PROG_3: ChordDef[] = [
   { root: 48, type: 'min9',   bassNote: 24, scale: 'harmonicMinor' },  // Cm9 (i)
-  { root: 51, type: 'min7b5', bassNote: 27, scale: 'locrian' },         // D#m7b5 (i°) — dissonant grief
-  { root: 56, type: 'maj9',   bassNote: 32, scale: 'lydian' },          // Abmaj9 (bVI) — the weeping chord
-  { root: 53, type: 'min6',   bassNote: 29, scale: 'naturalMinor' },    // Gm6 (iv) — descending to despair
+  { root: 56, type: 'maj9',   bassNote: 32, scale: 'lydian' },          // Abmaj9 (bVI)
+  { root: 55, type: 'min',    bassNote: 31, scale: 'aeolian' },         // Gm (v)
+  { root: 48, type: 'min6',   bassNote: 24, scale: 'naturalMinor' },    // Cm6 (i)
 ]
 
 // ---- Genre configurations ----
@@ -281,8 +279,36 @@ export const GENRE_CONFIGS: Record<MusicGenre, GenreConfig> = {
   },
   pop: {
     name: 'Pop',
-    description: 'Catchy hooks, punchy bass, bright energy.',
+    description: 'Catchy hooks, singable melodies, bright energy.',
     progressions: [POP_PROG_1, POP_PROG_2, POP_PROG_3],
+    // Pre-composed singable pop melodies — simple, catchy, follow chord tones
+    precomposedMelodies: [
+      // Prog 1 (C-G-Am-F): classic pop hook
+      // C: start on root (C), step up to E, G — bright opening
+      // G: descend from D to B — V chord tension
+      // Am: descend from C to A — vi chord, relative minor
+      // F: descend from A to F — IV chord, resolve back home
+      [
+        72, 76, 79, -1,   // C5 → E5 → G5 — over Cmaj9 (bright ascending)
+        74, 74, 71, -1,   // D5 → D5 → B4 — over G9 (hold then descend)
+        72, 72, 69, -1,   // C5 → C5 → A4 — over Am9 (descend to vi)
+        69, 69, 65, -1,   // A4 → A4 → F4 — over Fmaj9 (resolve down to IV)
+      ],
+      // Prog 2 (G-D-Em-C): singable in G
+      [
+        79, 79, 76, -1,   // G5 → G5 → E5 — over Gmaj9
+        74, 74, 71, -1,   // D5 → D5 → B4 — over D9
+        71, 71, 67, -1,   // B4 → B4 → G4 — over Em9
+        72, 72, 76, -1,   // C5 → C5 → E5 — over Cmaj9 (ascend back up)
+      ],
+      // Prog 3 (D-A-Bm-G): singable in D
+      [
+        74, 78, 81, -1,   // D5 → F#5 → A5 — over Dmaj9 (bright ascending)
+        76, 76, 73, -1,   // E5 → E5 → C#5 — over A9
+        71, 71, 66, -1,   // B4 → B4 → F#4 — over Bm9 (descend)
+        79, 79, 74, -1,   // G5 → G5 → D5 — over Gmaj9 (resolve)
+      ],
+    ],
     masterFilterFreq: 7500,
     reverbAmount: 0.28,
     delayAmount: 0.15,
@@ -297,42 +323,27 @@ export const GENRE_CONFIGS: Record<MusicGenre, GenreConfig> = {
     name: 'Doom',
     description: 'Emotional funeral doom. Beautiful, sad, heavy.',
     progressions: [DOOM_PROG_1, DOOM_PROG_2, DOOM_PROG_3],
-    // Pre-composed melodies — one array per progression, one note per jump
-    // These are actual composed emotional melodies, NOT random
-    // -1 = rest (let the previous note ring out — crucial for doom feel)
     precomposedMelodies: [
-      // Prog 1 (Dm9 - Bbmaj9 - Gm6 - Am): descending weeping melody
-      // Dm9: start on the 9th (E), descend to root (D) — sorrowful opening
-      // Bbmaj9: leap up to the 3rd (D), descend to root (Bb) — longing
-      // Gm6: descend from 5th (D) to root (G) — falling
-      // Am: tense hold on the 3rd (C) then resolve down — grief
+      // Prog 1 (Dm9-Bbmaj9-Gm6-Am): descending lament
       [
-        74, 73, 73, -1,   // E5 → D5 → D5 (hold) — over Dm9
-        74, 70, 70, -1,   // D5 → Bb4 → Bb4 (hold) — over Bbmaj9
-        74, 71, 71, -1,   // D5 → G4 → G4 (hold) — over Gm6
-        72, 69, 69, -1,   // C5 → A4 → A4 (hold) — over Am
+        74, 73, 73, -1,   // E5 → D5 → D5 — over Dm9 (sorrowful)
+        74, 70, 70, -1,   // D5 → Bb4 → Bb4 — over Bbmaj9 (longing)
+        74, 71, 71, -1,   // D5 → G4 → G4 — over Gm6 (falling)
+        72, 69, 69, -1,   // C5 → A4 → A4 — over Am (grief)
       ],
-      // Prog 2 (Bm9 - Dmaj7 - A9 - Bm6): hopeful sadness melody
-      // Bm9: start on 9th (C#), descend to root (B) — mournful
-      // Dmaj7: ascend to 3rd (F#), hold — brief hope
-      // A9: descend from 5th (E) to root (A) — resolution
-      // Bm6: descend from 6th (G#) to root (B) — final sorrow
+      // Prog 2 (Bm9-Dmaj7-A9-Bm6): hopeful sadness
       [
-        73, 71, 71, -1,   // C#5 → B4 → B4 (hold) — over Bm9
-        66, 66, 69, -1,   // F#4 → F#4 → A4 — over Dmaj7 (hopeful)
-        76, 72, 69, -1,   // E5 → C#5 → A4 — over A9 (descending resolution)
-        68, 71, 71, -1,   // G#4 → B4 → B4 — over Bm6 (final sorrow)
+        73, 71, 71, -1,   // C#5 → B4 → B4 — over Bm9
+        66, 66, 69, -1,   // F#4 → F#4 → A4 — over Dmaj7 (hope)
+        76, 72, 69, -1,   // E5 → C#5 → A4 — over A9 (resolve)
+        68, 71, 71, -1,   // G#4 → B4 → B4 — over Bm6 (sorrow)
       ],
-      // Prog 3 (Cm9 - D#m7b5 - Abmaj9 - Gm6): funeral march
-      // Cm9: start on 9th (D), descend to root (C) — funeral bell
-      // D#m7b5: tense tritone leap to G# then descend — dissonant grief
-      // Abmaj9: the weeping chord — hold high Ab then descend — emotional climax
-      // Gm6: descend from D to G — falling into despair
+      // Prog 3 (Cm9-Abmaj9-Gm-Cm6): funeral march
       [
-        74, 72, 72, -1,   // D5 → C5 → C5 (hold) — over Cm9
-        68, 64, 64, -1,   // G#4 → E#4 → E#4 — over D#m7b5 (dissonant)
-        80, 75, 72, -1,   // G#5 → Eb5 → C5 — over Abmaj9 (the weep)
-        74, 71, 67, -1,   // D5 → G4 → G3 — over Gm6 (final descent)
+        74, 72, 72, -1,   // D5 → C5 → C5 — over Cm9 (bell)
+        80, 75, 72, -1,   // Ab5 → Eb5 → C5 — over Abmaj9 (weep)
+        74, 71, 71, -1,   // D5 → G4 → G4 — over Gm (descend)
+        72, 72, 67, -1,   // C5 → C5 → G4 — over Cm6 (final)
       ],
     ],
     masterFilterFreq: 3000,     // moderately dark — lets clean melody through
