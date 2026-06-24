@@ -206,6 +206,22 @@ export class MelodyEngineV2 {
       const isChordTone = chordTones.some(t => (rootPc + t) % 12 === targetPc)
       const isScaleTone = scale.some(s => (rootPc + s) % 12 === targetPc)
 
+      /**
+       * BUGFIX (v2.1.0): The original fallbacks did `currentInterval += direction * 2`
+       * blindly — which could land on a note that is NEITHER a chord tone NOR a scale
+       * tone. That's why Lofi/Mystic/Synthwave sounded out-of-tune.
+       *
+       * Now: if the preferred step is not in-scale, we try the OTHER preferred steps
+       * (in weight order) until we find one that lands on a chord or scale tone. If
+       * nothing fits, we fall back to a perfect 0 (rest / repeat last note) — never
+       * an out-of-scale pitch.
+       */
+      const isInScale = (interval: number): boolean => {
+        const pc = (rootPc + interval + 1200) % 12
+        return chordTones.some(t => (rootPc + t) % 12 === pc) ||
+               scale.some(s => (rootPc + s) % 12 === pc)
+      }
+
       // Accept if it matches the bias
       if (isChordTone && Math.random() < profile.chordToneBias) {
         currentInterval = targetInterval
@@ -214,20 +230,53 @@ export class MelodyEngineV2 {
       } else if (isChordTone) {
         // Chord tone but bias said scale — accept anyway sometimes
         if (Math.random() < 0.3) currentInterval = targetInterval
-        else currentInterval += direction * 2  // fallback to a step
+        else currentInterval = this.findInScaleStep(currentInterval, direction, profile, isInScale)
       } else {
-        // Not in scale — use nearest scale tone
-        currentInterval += direction * 2
+        // Not in scale — search preferred steps for one that lands in scale
+        currentInterval = this.findInScaleStep(currentInterval, direction, profile, isInScale)
       }
 
-      // Clamp to max leap
+      // Clamp to max leap — also must be in scale
       const leap = Math.abs(currentInterval - this.motif[i - 1])
       if (leap > profile.maxLeap) {
-        currentInterval = this.motif[i - 1] + direction * Math.min(profile.maxLeap, step)
+        const clamped = this.motif[i - 1] + direction * Math.min(profile.maxLeap, step)
+        if (isInScale(clamped)) {
+          currentInterval = clamped
+        } else {
+          currentInterval = this.motif[i - 1]  // rest on last note (in scale by induction)
+        }
       }
 
       this.motif.push(currentInterval)
     }
+  }
+
+  /**
+   * Try each preferred step (in weight order) until we find one that lands on
+   * a chord or scale tone. Returns the new interval, or currentInterval (a rest)
+   * if nothing fits. NEVER returns an out-of-scale interval.
+   */
+  private findInScaleStep(
+    currentInterval: number,
+    direction: number,
+    profile: MelodyProfile,
+    isInScale: (interval: number) => boolean,
+  ): number {
+    // Sort preferred steps by weight descending
+    const sorted = [...profile.preferredSteps].sort((a, b) => b.weight - a.weight)
+    for (const candidate of sorted) {
+      const newInterval = currentInterval + direction * candidate.interval
+      if (isInScale(newInterval)) {
+        return newInterval
+      }
+      // Try opposite direction too (sometimes a step up is in scale when down isn't)
+      const oppositeInterval = currentInterval - direction * candidate.interval
+      if (isInScale(oppositeInterval)) {
+        return oppositeInterval
+      }
+    }
+    // Nothing in scale found — rest on current note (which is in scale by induction)
+    return currentInterval
   }
 
   private pickWeighted(items: { interval: number; weight: number }[]): number {

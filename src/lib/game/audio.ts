@@ -63,7 +63,8 @@ export class MusicEngine {
   // ---- Music state ----
   private progressionEngine: ProgressionEngine
   private melodyEngineV2: MelodyEngineV2
-  private useMelodyV2 = true  // use v2 melody engine by default (better style matching)
+  private useMelodyV2 = false  // v1 (chord/scale-weighted) is the default — it sounded good.
+                                // v2 had out-of-scale bugs and is kept off unless explicitly enabled.
   private jumpCount = 0
   private currentChord: ChordDef
   private lastMelodyNote = 72  // C5 — pleasant mid-range start
