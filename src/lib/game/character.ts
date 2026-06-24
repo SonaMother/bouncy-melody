@@ -48,15 +48,6 @@ export function drawCharacter(ctx: CanvasRenderingContext2D, c: CharacterState, 
   const w = c.w
   const h = c.h
 
-  // Soft drop shadow underneath
-  ctx.save()
-  ctx.globalAlpha = 0.2
-  ctx.fillStyle = '#000'
-  ctx.beginPath()
-  ctx.ellipse(0, h * 0.5 + 4, w * 0.4, h * 0.1, 0, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.restore()
-
   switch (c.type) {
     case 'pip':     drawPip(ctx, c, time, w, h); break
     case 'pixel':   drawPixel(ctx, c, time, w, h); break

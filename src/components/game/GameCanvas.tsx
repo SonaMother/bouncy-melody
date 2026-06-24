@@ -58,25 +58,13 @@ export default function GameCanvas({
   const [activeLayers, setActiveLayers] = useState<string[]>([])
   const [currentChordName, setCurrentChordName] = useState<string>('')
   const [started, setStarted] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const [ttsEnabled, setTtsEnabled] = useState<boolean>(false)
   const [currentSubtitle, setCurrentSubtitle] = useState<string>('')
   const [subtitleTimer, setSubtitleTimer] = useState<number>(0)
-  const [selectedCharacter, setSelectedCharacter] = useState<CharacterType>(
-    () => {
-      if (typeof window === 'undefined') return 'mochi'
-      const stored = localStorage.getItem('bouncy-character') as CharacterType
-      if (stored) return stored
-      return 'mochi'
-    }
-  )
-  const [selectedGenre, setSelectedGenre] = useState<MusicGenre>(
-    () => {
-      if (typeof window === 'undefined') return 'lofi'
-      const stored = localStorage.getItem('bouncy-genre') as MusicGenre
-      if (stored === 'lofi' || stored === 'mystic' || stored === 'synthwave' || stored === 'pop' || stored === 'doom') return stored
-      return 'lofi'
-    }
-  )
+  // Use fixed defaults to avoid hydration mismatch — localStorage loaded in useEffect after mount
+  const [selectedCharacter, setSelectedCharacter] = useState<CharacterType>('mochi')
+  const [selectedGenre, setSelectedGenre] = useState<MusicGenre>('lofi')
 
   // ---- TTS (Text-to-Speech) motivational voice ----
   // Story: Our character climbs toward Arash, the NonExistent — a god-like figure
@@ -176,6 +164,27 @@ export default function GameCanvas({
       cancelAnimationFrame(rafRef.current)
       musicRef.current?.stop()
     }
+  }, [])
+
+  // ---- Load saved settings from localStorage after mount (avoids hydration mismatch) ----
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const storedChar = localStorage.getItem('bouncy-character') as CharacterType
+    if (storedChar) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedCharacter(storedChar)
+    }
+    const storedGenre = localStorage.getItem('bouncy-genre') as MusicGenre
+    if (storedGenre === 'lofi' || storedGenre === 'mystic' || storedGenre === 'synthwave' || storedGenre === 'pop' || storedGenre === 'doom') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedGenre(storedGenre)
+    }
+    if (localStorage.getItem('bouncy-tts') === 'true') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTtsEnabled(true)
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true)
   }, [])
 
   // ---- Update character type when selection changes (does NOT recreate state) ----
@@ -519,7 +528,7 @@ export default function GameCanvas({
 
       {/* Version number — always visible, top center */}
       <div
-        className="absolute top-1 left-1/2 -translate-x-1/2 pointer-events-none"
+        className="absolute top-1 left-1/2 -translate-x-1/2 pointer-events-none text-outline-sm"
         style={{
           zIndex: 50,
           opacity: 0.7,
@@ -545,21 +554,21 @@ export default function GameCanvas({
         >
           <div className="flex flex-col gap-1">
             <div className="bg-black/30 backdrop-blur-md rounded-2xl px-3 py-1.5 border border-white/25 shadow-lg">
-              <div className="text-[10px] uppercase tracking-widest text-white/80 font-semibold" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>Score</div>
-              <div className="text-white font-black text-xl leading-tight tabular-nums" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.6), 0 0 2px rgba(0,0,0,0.8)' }}>
+              <div className="text-[10px] uppercase tracking-widest text-white/80 font-semibold text-outline-sm" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>Score</div>
+              <div className="text-white font-black text-xl leading-tight tabular-nums text-outline-sm" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.6), 0 0 2px rgba(0,0,0,0.8)' }}>
                 {score.toLocaleString()}
               </div>
             </div>
             <div className="bg-black/30 backdrop-blur-md rounded-2xl px-3 py-1 border border-white/20 shadow-lg">
-              <div className="text-[9px] uppercase tracking-widest text-white/70 font-semibold" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>Height</div>
-              <div className="text-white font-bold text-sm tabular-nums" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.7)' }}>{height}m</div>
+              <div className="text-[9px] uppercase tracking-widest text-white/70 font-semibold text-outline-sm" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>Height</div>
+              <div className="text-white font-bold text-sm tabular-nums text-outline-sm" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.7)' }}>{height}m</div>
             </div>
           </div>
 
           <div className="flex flex-col items-end gap-1">
             <div className="bg-black/30 backdrop-blur-md rounded-2xl px-3 py-1.5 border border-white/20 shadow-lg flex items-center gap-2">
-              <span className="text-[10px] uppercase tracking-widest text-white/70 font-semibold" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>Combo</span>
-              <span className="text-white font-black text-lg leading-none" style={{ textShadow: '0 2px 6px rgba(0,0,0,0.6)' }}>x{combo}</span>
+              <span className="text-[10px] uppercase tracking-widest text-white/70 font-semibold text-outline-sm" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>Combo</span>
+              <span className="text-white font-black text-lg leading-none text-outline-sm" style={{ textShadow: '0 2px 6px rgba(0,0,0,0.6)' }}>x{combo}</span>
             </div>
             <button
               onClick={togglePause}
@@ -618,7 +627,7 @@ export default function GameCanvas({
             style={{ zIndex: 15 }}
           >
             <div style={{ background: 'rgba(0,0,0,0.85)', borderRadius: 10, padding: '8px 16px', border: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 4px 16px rgba(0,0,0,0.5)' }}>
-              <span style={{ color: '#fff', fontFamily: "'Baloo 2', 'Nunito', system-ui, sans-serif", fontSize: 14, fontWeight: 700, textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+              <span className="text-outline-sm" style={{ color: '#fff', fontFamily: "'Baloo 2', 'Nunito', system-ui, sans-serif", fontSize: 14, fontWeight: 700, textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
                 {currentSubtitle}
               </span>
             </div>
@@ -636,7 +645,7 @@ export default function GameCanvas({
         >
           <div className="bg-black/30 backdrop-blur-md rounded-2xl px-4 py-2 border border-white/20 shadow-lg flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] uppercase tracking-widest text-white/70 font-semibold" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>Music</span>
+              <span className="text-[10px] uppercase tracking-widest text-white/70 font-semibold text-outline-sm" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>Music</span>
               <div className="flex gap-1">
                 {['pad', 'bass', 'melody', 'chord'].map((layer) => (
                   <div
@@ -648,9 +657,9 @@ export default function GameCanvas({
             </div>
             <div className="flex items-center gap-3">
               {currentChordName && (
-                <span className="text-[11px] text-yellow-200 font-mono font-bold" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.6)' }}>{currentChordName}</span>
+                <span className="text-[11px] text-yellow-200 font-mono font-bold text-outline-sm" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.6)' }}>{currentChordName}</span>
               )}
-              <span className="text-[10px] text-white/70 font-mono" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>#{musicStep}</span>
+              <span className="text-[10px] text-white/70 font-mono text-outline-sm" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>#{musicStep}</span>
             </div>
           </div>
         </motion.div>
@@ -662,164 +671,134 @@ export default function GameCanvas({
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="absolute inset-0 flex flex-col items-center justify-center p-4 overflow-y-auto"
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 flex flex-col items-center justify-start p-3 pt-6 overflow-y-auto"
             style={{ zIndex: 20 }}
           >
+            {/* Compact title */}
             <motion.div
-              initial={{ y: 30, opacity: 0 }}
+              initial={{ y: -10, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.1, type: 'spring' }}
-              className="text-center mt-4"
+              transition={{ delay: 0.05 }}
+              className="text-center mb-2"
             >
-              <div className="text-[10px] uppercase tracking-[0.3em] text-white/80 font-bold mb-1" style={{ textShadow: '0 2px 6px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.6)' }}>Seeking the NonExistent Arash</div>
               <h1
-                className="text-5xl font-black text-white mb-0"
+                className="text-2xl font-black leading-none text-outline-sm"
                 style={{
                   fontFamily: "'Baloo 2', 'Nunito', system-ui, sans-serif",
-                  textShadow: '0 4px 24px rgba(244, 114, 182, 0.6), 0 2px 8px rgba(0,0,0,0.7), 0 0 4px rgba(0,0,0,0.5)',
                   background: 'linear-gradient(180deg, #fff 0%, #ffe4f0 50%, #f9a8d4 100%)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text',
-                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))',
                 }}
               >
-                Bouncy
+                Bouncy Melody
               </h1>
-              <div
-                className="text-2xl font-black mb-4"
-                style={{
-                  fontFamily: "'Baloo 2', 'Nunito', system-ui, sans-serif",
-                  background: 'linear-gradient(180deg, #fef3c7 0%, #fbbf24 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                  textShadow: '0 4px 16px rgba(251, 191, 36, 0.5)',
-                }}
-              >
-                Melody
+              <div className="text-[8px] uppercase tracking-[0.2em] text-white/60 text-outline-sm mt-0.5">
+                Seeking the NonExistent Arash
               </div>
             </motion.div>
 
+            {/* Play button */}
             <motion.button
-              initial={{ scale: 0.8, opacity: 0 }}
+              initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.3, type: 'spring' }}
-              whileHover={{ scale: 1.05 }}
+              transition={{ delay: 0.1, type: 'spring' }}
+              whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.95 }}
               onClick={startGame}
-              className="px-12 py-4 rounded-full font-black text-2xl text-white shadow-2xl transition-all"
+              className="px-8 py-2 rounded-full font-black text-lg text-white shadow-2xl mb-2 text-outline-sm"
               style={{
                 background: 'linear-gradient(135deg, #f472b6 0%, #ec4899 50%, #be185d 100%)',
-                boxShadow: '0 8px 32px rgba(236, 72, 153, 0.5), inset 0 2px 0 rgba(255,255,255,0.3)',
+                boxShadow: '0 4px 20px rgba(236, 72, 153, 0.5)',
                 border: '2px solid rgba(255,255,255,0.2)',
               }}
             >
               Play
             </motion.button>
 
+            {best > 0 && (
+              <div className="text-white/80 text-[10px] mb-2 text-outline-sm">
+                Best: <span className="font-bold text-yellow-200">{best}m</span>
+              </div>
+            )}
+
             {/* Character selection */}
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="mt-7 w-full max-w-sm"
+              transition={{ delay: 0.2 }}
+              className="w-full max-w-[260px]"
             >
-              <div className="text-[10px] uppercase tracking-[0.3em] text-white/50 font-bold text-center mb-3">Choose your bouncer</div>
-              <div className="grid grid-cols-4 gap-1.5">
+              <div className="text-[8px] uppercase tracking-[0.15em] text-white/60 font-bold text-center mb-1 text-outline-sm">Character</div>
+              <div className="grid grid-cols-4 gap-1">
                 {(Object.keys(CHARACTER_NAMES) as CharacterType[]).map((type) => {
                   const isSelected = selectedCharacter === type
-                  const accentHue = type === 'pip' ? 340 : type === 'pixel' ? 165 : type === 'mochi' ? 25 : type === 'yuki' ? 205 : type === 'kuro' ? 180 : type === 'bongo' ? 30 : type === 'popcat' ? 35 : type === 'neon' ? 290 : type === 'blob3d' ? 280 : type === 'spark' ? 180 : 280
+                  const accentHue = type === 'pip' ? 340 : type === 'pixel' ? 165 : type === 'mochi' ? 25 : type === 'yuki' ? 205 : type === 'kuro' ? 180 : type === 'bongo' ? 30 : type === 'popcat' ? 35 : type === 'neon' ? 290 : type === 'blob3d' ? 280 : type === 'cat3d' ? 20 : type === 'spark' ? 180 : 280
                   return (
-                    <motion.button
+                    <button
                       key={type}
                       onClick={() => setSelectedCharacter(type)}
-                      whileHover={{ scale: 1.04 }}
-                      whileTap={{ scale: 0.96 }}
-                      className="relative rounded-2xl p-3 transition-all"
+                      className="relative rounded-lg p-1 transition-all"
                       style={{
                         background: isSelected
                           ? `linear-gradient(135deg, hsl(${accentHue}, 70%, 45%), hsl(${accentHue}, 75%, 30%))`
-                          : 'rgba(20, 15, 35, 0.85)',
+                          : 'rgba(15, 10, 25, 0.9)',
                         border: isSelected
                           ? `2px solid hsl(${accentHue}, 90%, 70%)`
-                          : '2px solid rgba(255,255,255,0.25)',
-                        boxShadow: isSelected ? `0 0 20px hsla(${accentHue}, 90%, 60%, 0.5)` : '0 2px 8px rgba(0,0,0,0.3)',
+                          : '1.5px solid rgba(255,255,255,0.2)',
                       }}
                     >
                       <CharacterPreview type={type} />
                       <div
-                        className="text-xs font-black mt-1"
-                        style={{
-                          color: isSelected ? `hsl(${accentHue}, 95%, 85%)` : 'rgba(255,255,255,0.85)',
-                          textShadow: '0 1px 3px rgba(0,0,0,0.8)',
-                        }}
+                        className="text-[8px] font-bold mt-0.5 text-outline-sm"
+                        style={{ color: isSelected ? `hsl(${accentHue}, 95%, 85%)` : 'rgba(255,255,255,0.7)' }}
                       >
                         {CHARACTER_NAMES[type]}
                       </div>
-                      {isSelected && (
-                        <motion.div
-                          layoutId="char-check"
-                          className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
-                          style={{ background: `hsl(${accentHue}, 95%, 70%)` }}
-                        >
-                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                            <path d="M2 5 L4 7 L8 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </motion.div>
-                      )}
-                    </motion.button>
+                    </button>
                   )
                 })}
               </div>
-              <div className="text-center mt-3 text-[11px] text-white/70 italic min-h-[2.5em] px-2" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
-                {CHARACTER_DESCRIPTIONS[selectedCharacter]}
-              </div>
+            </motion.div>
 
-              {/* Genre selector */}
-              <div className="text-[10px] uppercase tracking-[0.3em] text-white/70 font-bold text-center mb-2 mt-4" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>Music Genre</div>
+            {/* Genre + TTS */}
+            <motion.div
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="w-full max-w-[260px] mt-2"
+            >
+              <div className="text-[8px] uppercase tracking-[0.15em] text-white/60 font-bold text-center mb-1 text-outline-sm">Genre</div>
               <div className="grid grid-cols-5 gap-0.5">
                 {(Object.keys(GENRE_CONFIGS) as MusicGenre[]).map((genre) => {
                   const isSelected = selectedGenre === genre
                   const config = GENRE_CONFIGS[genre]
                   const genreHue = genre === 'lofi' ? 200 : genre === 'mystic' ? 280 : genre === 'synthwave' ? 320 : genre === 'pop' ? 350 : 0
                   return (
-                    <motion.button
+                    <button
                       key={genre}
                       onClick={() => setSelectedGenre(genre)}
-                      whileHover={{ scale: 1.04 }}
-                      whileTap={{ scale: 0.96 }}
-                      className="relative rounded-xl p-2 transition-all"
+                      className="rounded py-1 transition-all"
                       style={{
                         background: isSelected
                           ? `linear-gradient(135deg, hsl(${genreHue}, 70%, 45%), hsl(${genreHue}, 75%, 30%))`
-                          : 'rgba(20, 15, 35, 0.85)',
+                          : 'rgba(15, 10, 25, 0.9)',
                         border: isSelected
                           ? `2px solid hsl(${genreHue}, 90%, 70%)`
-                          : '2px solid rgba(255,255,255,0.25)',
-                        boxShadow: isSelected ? `0 0 15px hsla(${genreHue}, 90%, 60%, 0.5)` : '0 2px 8px rgba(0,0,0,0.3)',
+                          : '1.5px solid rgba(255,255,255,0.2)',
                       }}
                     >
-                      <div
-                        className="text-[11px] font-black"
-                        style={{
-                          color: isSelected ? 'white' : 'rgba(255,255,255,0.85)',
-                          textShadow: '0 1px 3px rgba(0,0,0,0.8)',
-                        }}
-                      >
+                      <span className="text-[8px] font-bold text-outline-sm" style={{ color: isSelected ? 'white' : 'rgba(255,255,255,0.7)' }}>
                         {config.name}
-                      </div>
-                    </motion.button>
+                      </span>
+                    </button>
                   )
                 })}
               </div>
-              <div className="text-center mt-2 text-[10px] text-white/60 italic min-h-[1.5em] px-2" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
-                {GENRE_CONFIGS[selectedGenre].description}
-              </div>
 
-              {/* TTS Toggle */}
-              <div className="flex items-center justify-center gap-2 mt-2">
+              {/* TTS toggle */}
+              <div className="flex items-center justify-center mt-2">
                 <button
                   onClick={() => {
                     const next = !ttsEnabled
@@ -831,44 +810,31 @@ export default function GameCanvas({
                       window.speechSynthesis.speak(warmup)
                     }
                   }}
-                  className="rounded-xl px-3 py-1.5 transition-all"
+                  className="rounded-md px-2 py-1 transition-all"
                   style={{
-                    background: ttsEnabled ? 'linear-gradient(135deg, hsl(140, 70%, 40%), hsl(140, 75%, 28%))' : 'rgba(20, 15, 35, 0.85)',
-                    border: ttsEnabled ? '2px solid hsl(140, 90%, 65%)' : '2px solid rgba(255,255,255,0.25)',
+                    background: ttsEnabled
+                      ? 'linear-gradient(135deg, hsl(140, 70%, 40%), hsl(140, 75%, 28%))'
+                      : 'rgba(15, 10, 25, 0.9)',
+                    border: ttsEnabled
+                      ? '2px solid hsl(140, 90%, 65%)'
+                      : '1.5px solid rgba(255,255,255,0.2)',
                   }}
                 >
-                  <span className="text-[10px] font-bold" style={{ color: ttsEnabled ? 'white' : 'rgba(255,255,255,0.7)', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
+                  <span className="text-[8px] font-bold text-outline-sm" style={{ color: ttsEnabled ? 'white' : 'rgba(255,255,255,0.7)' }}>
                     {ttsEnabled ? '🔊 Voice ON' : '🔇 Voice OFF'}
                   </span>
                 </button>
               </div>
-              <div className="text-center mt-1 text-[9px] text-white/50" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
-                Motivational voice every 20 jumps
-              </div>
             </motion.div>
 
-            {best > 0 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="mt-6 text-white/90 text-sm"
-                style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}
-              >
-                Best: <span className="font-bold text-yellow-200" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>{best}m</span>
-              </motion.div>
-            )}
-
+            {/* Footer */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 0.7 }}
-              className="mt-8 text-center text-white/70 text-xs max-w-xs"
-              style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}
+              transition={{ delay: 0.4 }}
+              className="mt-2 text-center text-white/50 text-[8px] text-outline-sm"
             >
-              Tap left or right side of screen to move. <br/>
-              Tilt your phone to steer. <br/>
-              Each bounce adds to the music.
+              Tap sides to move · Tilt to steer · Bounce for Arash
             </motion.div>
           </motion.div>
         )}
@@ -884,11 +850,11 @@ export default function GameCanvas({
             className="absolute inset-0 flex flex-col items-center justify-center p-6"
             style={{ zIndex: 20, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}
           >
-            <h2 className="text-4xl font-black text-white mb-6" style={{ fontFamily: "'Baloo 2', system-ui, sans-serif" }}>Paused</h2>
+            <h2 className="text-4xl font-black text-white mb-6 text-outline-sm" style={{ fontFamily: "'Baloo 2', system-ui, sans-serif" }}>Paused</h2>
             <div className="flex gap-3">
               <button
                 onClick={togglePause}
-                className="px-8 py-3 rounded-full font-bold text-white"
+                className="px-8 py-3 rounded-full font-bold text-white text-outline-sm"
                 style={{ background: 'linear-gradient(135deg, #f472b6, #ec4899)' }}
               >
                 Resume
@@ -902,7 +868,7 @@ export default function GameCanvas({
                     onPhaseChange?.('menu')
                   }
                 }}
-                className="px-8 py-3 rounded-full font-bold text-white/90 bg-white/10 border border-white/20"
+                className="px-8 py-3 rounded-full font-bold text-white/90 bg-white/10 border border-white/20 text-outline-sm"
               >
                 Quit
               </button>
@@ -927,9 +893,9 @@ export default function GameCanvas({
               transition={{ type: 'spring', delay: 0.2 }}
               className="text-center"
             >
-              <div className="text-[11px] uppercase tracking-[0.3em] text-pink-200/80 font-bold mb-2" style={{ textShadow: '0 2px 6px rgba(0,0,0,0.8)' }}>Arash is still watching</div>
+              <div className="text-[11px] uppercase tracking-[0.3em] text-pink-200/80 font-bold mb-2 text-outline-sm" style={{ textShadow: '0 2px 6px rgba(0,0,0,0.8)' }}>Arash is still watching</div>
               <h2
-                className="text-5xl font-black text-white mb-6"
+                className="text-5xl font-black text-white mb-6 text-outline-sm"
                 style={{
                   fontFamily: "'Baloo 2', system-ui, sans-serif",
                   textShadow: '0 4px 16px rgba(0,0,0,0.6), 0 0 4px rgba(0,0,0,0.5)',
@@ -946,13 +912,13 @@ export default function GameCanvas({
               className="bg-black/30 backdrop-blur-md rounded-3xl p-5 mb-6 border border-white/20 shadow-lg flex gap-6"
             >
               <div className="text-center">
-                <div className="text-[10px] uppercase tracking-widest text-white/70 font-semibold mb-1" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>Height</div>
-                <div className="text-3xl font-black text-white tabular-nums" style={{ textShadow: '0 2px 6px rgba(0,0,0,0.6)' }}>{height}m</div>
+                <div className="text-[10px] uppercase tracking-widest text-white/70 font-semibold mb-1 text-outline-sm" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>Height</div>
+                <div className="text-3xl font-black text-white tabular-nums text-outline-sm" style={{ textShadow: '0 2px 6px rgba(0,0,0,0.6)' }}>{height}m</div>
               </div>
               <div className="w-px bg-white/20" />
               <div className="text-center">
-                <div className="text-[10px] uppercase tracking-widest text-white/70 font-semibold mb-1" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>Best</div>
-                <div className="text-3xl font-black text-yellow-200 tabular-nums" style={{ textShadow: '0 2px 6px rgba(0,0,0,0.6)' }}>{best}m</div>
+                <div className="text-[10px] uppercase tracking-widest text-white/70 font-semibold mb-1 text-outline-sm" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>Best</div>
+                <div className="text-3xl font-black text-yellow-200 tabular-nums text-outline-sm" style={{ textShadow: '0 2px 6px rgba(0,0,0,0.6)' }}>{best}m</div>
               </div>
             </motion.div>
 
@@ -963,7 +929,7 @@ export default function GameCanvas({
                 transition={{ delay: 0.6, type: 'spring' }}
                 className="mb-6 px-4 py-2 rounded-full bg-yellow-400/20 border border-yellow-300/40"
               >
-                <span className="text-yellow-200 font-bold text-sm">New Best!</span>
+                <span className="text-yellow-200 font-bold text-sm text-outline-sm">New Best!</span>
               </motion.div>
             )}
 
@@ -974,7 +940,7 @@ export default function GameCanvas({
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={startGame}
-              className="px-10 py-4 rounded-full font-black text-xl text-white shadow-2xl"
+              className="px-10 py-4 rounded-full font-black text-xl text-white shadow-2xl text-outline-sm"
               style={{
                 background: 'linear-gradient(135deg, #f472b6 0%, #ec4899 50%, #be185d 100%)',
                 boxShadow: '0 8px 32px rgba(236, 72, 153, 0.5)',
@@ -991,7 +957,7 @@ export default function GameCanvas({
                   onPhaseChange?.('menu')
                 }
               }}
-              className="mt-3 text-white/70 hover:text-white text-sm font-semibold"
+              className="mt-3 text-white/70 hover:text-white text-sm font-semibold text-outline-sm"
             >
               Back to Menu
             </button>

@@ -178,36 +178,40 @@ const POP_PROG_3: ChordDef[] = [
 ]
 
 // ====================================================================
-// GENRE 5: DOOM / GOTHIC METAL
-// Slow, heavy, dark. Think Black Sabbath, Type O Negative, Sleep,
-// Pallbearer, Sunn O))). Power chords, tritone riffs, low register,
-// minor key with harmonic minor tension.
+// GENRE 5: DOOM / FUNERAL DOOM / EMOTIONAL METAL
+// Beautiful, sad, emotional, heavy. Think Warning, Pallbearer, Yob,
+// Evoken, Shape of Despair. The emotion comes from:
+// - Slow minor progressions with bVI (creates longing/lament)
+// - Minor 6 and minor 9 chords for color and sadness
+// - Descending bass lines (feeling of falling/despair)
+// - Clean melody tones over heavy bass (contrast = emotion)
 // ====================================================================
 
-// Black Sabbath style: i - bVI - bVII - i in E minor (very low)
-// Using power chords (root+5th) with min for tension
+// Warning "Watching From a Distance" style: i - bVI - iv - v in D minor
+// This is THE emotional doom progression — bVI creates the "lament" feel
 const DOOM_PROG_1: ChordDef[] = [
-  { root: 40, type: 'min',    bassNote: 16, scale: 'harmonicMinor' },  // Em (low E)
-  { root: 48, type: 'maj',    bassNote: 24, scale: 'lydian' },          // C (bVI)
-  { root: 50, type: 'maj',    bassNote: 26, scale: 'mixolydian' },      // D (bVII)
-  { root: 40, type: 'min',    bassNote: 16, scale: 'naturalMinor' },    // Em (i)
+  { root: 50, type: 'min9',   bassNote: 26, scale: 'harmonicMinor' },  // Dm9 (i) — sorrowful
+  { root: 57, type: 'maj9',   bassNote: 33, scale: 'lydian' },          // Bbmaj9 (bVI) — longing
+  { root: 53, type: 'min6',   bassNote: 29, scale: 'naturalMinor' },    // Gm6 (iv) — despair
+  { root: 55, type: 'min',    bassNote: 31, scale: 'aeolian' },         // Am (v) — tension
 ]
 
-// Type O Negative style: i - iv - bVI - v in B minor (dark, gothic)
+// Pallbearer style: i - bIII - bVII - i in B minor
+// Clean arpeggio feel with descending resolution
 const DOOM_PROG_2: ChordDef[] = [
-  { root: 47, type: 'min',    bassNote: 23, scale: 'harmonicMinor' },  // Bm
-  { root: 50, type: 'min',    bassNote: 26, scale: 'naturalMinor' },    // Em (iv)
-  { root: 54, type: 'maj',    bassNote: 30, scale: 'lydian' },          // G (bVI)
-  { root: 52, type: 'min',    bassNote: 28, scale: 'aeolian' },         // F#m (v)
+  { root: 47, type: 'min9',   bassNote: 23, scale: 'harmonicMinor' },  // Bm9 (i)
+  { root: 50, type: 'maj7',   bassNote: 26, scale: 'lydian' },          // Dmaj7 (bIII) — hopeful sadness
+  { root: 57, type: 'dom9',   bassNote: 33, scale: 'mixolydian' },      // A9 (bVII) — resolution
+  { root: 47, type: 'min6',   bassNote: 23, scale: 'naturalMinor' },    // Bm6 (i) — final sorrow
 ]
 
-// Sleep / Pallbearer style: Tritone riff — the "Devil's interval"
-// D - Ab - D - Ab (tritone alternation, extremely heavy)
+// Yob / Evoken style: Slow chromatic descent in C minor
+// i - i(dim5) - bVI - iv — funeral march feel
 const DOOM_PROG_3: ChordDef[] = [
-  { root: 50, type: 'min',    bassNote: 26, scale: 'harmonicMinor' },  // Dm
-  { root: 44, type: 'dim7',   bassNote: 20, scale: 'wholeTone' },      // Abdim7 (tritone)
-  { root: 50, type: 'min',    bassNote: 26, scale: 'naturalMinor' },    // Dm
-  { root: 56, type: 'aug',    bassNote: 32, scale: 'wholeTone' },       // Abaug (tritone)
+  { root: 48, type: 'min9',   bassNote: 24, scale: 'harmonicMinor' },  // Cm9 (i)
+  { root: 51, type: 'min7b5', bassNote: 27, scale: 'locrian' },         // D#m7b5 (i°) — dissonant grief
+  { root: 56, type: 'maj9',   bassNote: 32, scale: 'lydian' },          // Abmaj9 (bVI) — the weeping chord
+  { root: 53, type: 'min6',   bassNote: 29, scale: 'naturalMinor' },    // Gm6 (iv) — descending to despair
 ]
 
 // ---- Genre configurations ----
@@ -289,17 +293,17 @@ export const GENRE_CONFIGS: Record<MusicGenre, GenreConfig> = {
   },
   doom: {
     name: 'Doom',
-    description: 'Heavy doom metal. Black Sabbath vibes, tritone riffs.',
+    description: 'Emotional funeral doom. Beautiful, sad, heavy.',
     progressions: [DOOM_PROG_1, DOOM_PROG_2, DOOM_PROG_3],
-    masterFilterFreq: 2200,     // very dark — muffles everything for that muddy heavy tone
-    reverbAmount: 0.6,          // cavernous — like playing in a cathedral
-    delayAmount: 0.3,           // echo for vast emptiness
-    padVolume: 0.09,            // loud dark drone — atmospheric dread
-    bassVolume: 0.50,           // CRUSHING bass — the defining feature of doom
-    melodyVolume: 0.14,         // buried under the bass — sparse, mournful
-    chordStabVolume: 0.14,      // heavy power chord hits
-    melodyOscType: 'sawtooth',  // harsh, gritty lead
-    bassOscType: 'sawtooth',    // HEAVY sawtooth bass — the crushing tone
+    masterFilterFreq: 3000,     // moderately dark — lets clean melody through
+    reverbAmount: 0.6,          // cavernous — cathedral reverb for emotion
+    delayAmount: 0.35,          // long echoes — vast emptiness
+    padVolume: 0.08,            // atmospheric drone
+    bassVolume: 0.48,           // heavy bass — the crushing foundation
+    melodyVolume: 0.20,         // clean melody audible — the emotional voice
+    chordStabVolume: 0.11,      // soft chord stabs — not harsh
+    melodyOscType: 'sine',      // CLEAN sine melody — mournful, pure (contrast with heavy bass)
+    bassOscType: 'sawtooth',    // heavy sawtooth bass — the crushing weight
   },
 }
 

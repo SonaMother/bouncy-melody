@@ -92,19 +92,20 @@ const PROFILES: Record<MelodyStyle, MelodyProfile> = {
     motifLength: 4,
   },
   doom: {
-    chordToneBias: 0.8,
+    chordToneBias: 0.85,
     preferredSteps: [
-      { interval: 1, weight: 4 },   // semitone (dissonant, tense)
-      { interval: 2, weight: 2 },   // whole tone
-      { interval: 3, weight: 3 },   // minor third (dark)
-      { interval: 6, weight: 2.5 }, // tritone (devil's interval)
-      { interval: 7, weight: 1.5 }, // fifth
-      { interval: 8, weight: 2 },   // minor sixth (ominous)
+      { interval: 2, weight: 4 },   // whole step — smooth descending lines
+      { interval: 3, weight: 3.5 }, // minor third — the weeping interval
+      { interval: 5, weight: 3 },   // fourth — open, mournful
+      { interval: 7, weight: 2.5 }, // fifth — power, resolution
+      { interval: 1, weight: 2 },   // semitone — tension/grief
+      { interval: 8, weight: 2 },   // minor sixth — longing, yearning
+      { interval: 9, weight: 1.5 }, // major sixth — rare hope in sadness
     ],
-    maxLeap: 8,
-    contourBias: -0.4,  // strongly descending (heavy, dragging feel)
-    restProbability: 0.25,
-    motifLength: 3,
+    maxLeap: 9,
+    contourBias: -0.3,  // descending — weeping, falling tears
+    restProbability: 0.3,  // sparse — let notes ring out and decay
+    motifLength: 3,     // short motifs — broken phrases, like sobs
   },
 }
 
