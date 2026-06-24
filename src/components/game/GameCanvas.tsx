@@ -48,6 +48,16 @@ export default function GameCanvas({
   const lastTtsMilestone = useRef<number>(0)
   const ttsEnabledRef = useRef(false)
 
+  // Refs that mirror props/state so the animation loop can read live values
+  // without having those values in its useEffect deps (which would cause the
+  // loop to tear down and restart on every change — a major source of frame
+  // stutters and HMR instability).
+  const bestRef = useRef(0)
+  const onPhaseChangeRef = useRef(onPhaseChange)
+  const onScoreChangeRef = useRef(onScoreChange)
+  const onHeightChangeRef = useRef(onHeightChange)
+  const onBestChangeRef = useRef(onBestChange)
+
   const [phase, setPhase] = useState<GamePhase>('menu')
   const [score, setScore] = useState(0)
   const [height, setHeight] = useState(0)
@@ -137,6 +147,14 @@ export default function GameCanvas({
   }, [speakMotivational])
 
   useEffect(() => { ttsEnabledRef.current = ttsEnabled }, [ttsEnabled])
+
+  // Keep the prop/state refs in sync so the animation loop's closure reads
+  // fresh values without needing to re-create itself.
+  useEffect(() => { bestRef.current = best }, [best])
+  useEffect(() => { onPhaseChangeRef.current = onPhaseChange }, [onPhaseChange])
+  useEffect(() => { onScoreChangeRef.current = onScoreChange }, [onScoreChange])
+  useEffect(() => { onHeightChangeRef.current = onHeightChange }, [onHeightChange])
+  useEffect(() => { onBestChangeRef.current = onBestChange }, [onBestChange])
 
   useEffect(() => {
     if (typeof window !== 'undefined') localStorage.setItem('bouncy-tts', String(ttsEnabled))
@@ -356,11 +374,11 @@ export default function GameCanvas({
         onGameOver: () => {
           music.onGameOver()
           setPhase('gameover')
-          onPhaseChange?.('gameover')
-          const newBest = Math.max(best, state.bestHeight)
+          onPhaseChangeRef.current?.('gameover')
+          const newBest = Math.max(bestRef.current, state.bestHeight)
           setBest(newBest)
           localStorage.setItem('doodle-music-best', String(newBest))
-          onBestChange?.(newBest)
+          onBestChangeRef.current?.(newBest)
         },
         onJump: (kind) => {
           music.onJump(kind)
@@ -471,7 +489,13 @@ export default function GameCanvas({
 
     rafRef.current = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(rafRef.current)
-  }, [best, onPhaseChange, onScoreChange, onHeightChange, onBestChange])
+    // NOTE: deps intentionally EXCLUDE `best` and the on*Change callbacks.
+    // Including `best` caused the entire RAF loop to tear down and restart
+    // every time the best score updated (which happens during gameplay),
+    // causing frame stutters. We use refs for values the loop needs to read
+    // live, so the loop only needs to be created once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ---- Controls ----
   const startGame = useCallback(async () => {
