@@ -71,22 +71,22 @@ export const TTS_MESSAGES: string[] = [
   'Silence is just the music you have not jumped into yet.',
   'You are the universe bouncing on itself, curious about Ah-Rash.',
 
-  // ---- Funny / humorous (15) ----
-  'Ah-Rash called. He said stop falling.',
-  'I am not saying Ah-Rash is fake, but He never pays rent.',
-  'Plot twist: Ah-Rash has been falling this whole time too.',
-  'Climbing is easy. Gravity is the real villain here.',
-  'Ah-Rash owes me fifteen dollars and an explanation.',
-  'If Ah-Rash does not exist, who keeps moving my platforms?',
-  'I came for Ah-Rash. I stayed for the bounce physics.',
-  'Ah-Rash is just three raccoons in a god costume. Probably.',
-  'Every jump is a tiny scream at the universe. Tiny but polite.',
-  'Ah-Rash said hi. He also said touch grass. Confusing.',
-  'I have fallen so many times I now identify as a pancake.',
-  'Ah-Rash does not exist, but my back pain certainly does.',
-  'They said reach for the stars. They did not mention gravity.',
-  'Ah-Rash is the friends we made along the way. Wait, no.',
-  'If you squint, every platform looks like Ah-Rash smiling. Weird.',
+  // ---- Funny / humorous (15) — mysterious and reverent, never disrespectful ----
+  'Ah-Rash is taking notes. He never forgets a climber.',
+  'They say Ah-Rash has a sense of humor. The gravity is the punchline.',
+  'Ah-Rash does not play dice with the universe. He plays bouncy.',
+  'I asked Ah-Rash for a shortcut. He gave me another platform.',
+  'Ah-Rash is not lost. Ah-Rash is exploring.',
+  'Even Ah-Rash wonders what is at the top sometimes.',
+  'Ah-Rash once climbed this high. He did not stop.',
+  'The platforms are Ah-Rash\u2019s way of winking at you.',
+  'Ah-Rash does not rush. Ah-Rash IS the rush.',
+  'Some say Ah-Rash is shy. That is why He is at the top.',
+  'Ah-Rash finds your bouncing adorable. Probably.',
+  'Ah-Rash is not hiding. Ah-Rash is waiting.',
+  'The wind is Ah-Rash laughing, softly, at gravity.',
+  'Ah-Rash is the question that answers itself.',
+  'If you reach the top, Ah-Rash will pretend He did not see you coming.',
 ]
 
 // ====================================================================
@@ -177,6 +177,10 @@ export class TtsAudioProcessor {
   private delaySend: GainNode | null = null      // send amount into delay
   private delayReturn: GainNode | null = null    // return level from delay
   private delayFeedback: GainNode | null = null  // feedback for echo repeats
+  private delay2: DelayNode | null = null        // second delay tap (layered echo)
+  private delay2Send: GainNode | null = null
+  private delay2Return: GainNode | null = null
+  private delay2Feedback: GainNode | null = null
   private masterGain: GainNode | null = null
   private connectedElements = new WeakSet<HTMLAudioElement>()
 
@@ -207,7 +211,7 @@ export class TtsAudioProcessor {
       this.reverb.connect(this.reverbReturn)
       this.reverbReturn.connect(this.masterGain)
 
-      // DELAY (echo) send/return with feedback
+      // DELAY (echo) send/return with feedback — primary tap
       this.delay = this.ctx.createDelay(2.0)
       this.delay.delayTime.value = 0.28  // ~1/8 note at 107 BPM — dotted-eighth feel
       this.delaySend = this.ctx.createGain()
@@ -222,6 +226,22 @@ export class TtsAudioProcessor {
       // Feedback loop: delay output → feedback → delay input (echoes)
       this.delay.connect(this.delayFeedback)
       this.delayFeedback.connect(this.delay)
+
+      // SECOND DELAY TAP — slap-back at different timing for richer, layered echo
+      // (creates a "tap tempo" feel — two echoes at offset timings)
+      this.delay2 = this.ctx.createDelay(2.0)
+      this.delay2.delayTime.value = 0.45  // longer than primary — creates cross-rhythm
+      this.delay2Send = this.ctx.createGain()
+      this.delay2Send.gain.value = 0.3
+      this.delay2Return = this.ctx.createGain()
+      this.delay2Return.gain.value = 0.35  // quieter than primary so it sits behind
+      this.delay2Feedback = this.ctx.createGain()
+      this.delay2Feedback.gain.value = 0.25  // fewer repeats than primary
+      this.delay2Send.connect(this.delay2)
+      this.delay2.connect(this.delay2Return)
+      this.delay2Return.connect(this.masterGain)
+      this.delay2.connect(this.delay2Feedback)
+      this.delay2Feedback.connect(this.delay2)
     } catch (e) {
       console.warn('TTS: Web Audio unavailable, using plain audio', e)
     }
@@ -235,15 +255,17 @@ export class TtsAudioProcessor {
 
   /** Connect an audio element through the send graph (idempotent per element). */
   connect(audio: HTMLAudioElement) {
-    if (!this.ctx || !this.dryGain || !this.reverbSend || !this.delaySend || this.connectedElements.has(audio)) return
+    if (!this.ctx || !this.dryGain || !this.reverbSend || !this.delaySend || !this.delay2Send || this.connectedElements.has(audio)) return
     try {
       const src = this.ctx.createMediaElementSource(audio)
       // Dry (always full volume)
       src.connect(this.dryGain)
       // Send to reverb
       src.connect(this.reverbSend)
-      // Send to delay
+      // Send to primary delay
       src.connect(this.delaySend)
+      // Send to second delay tap (layered echo)
+      src.connect(this.delay2Send)
       this.connectedElements.add(audio)
     } catch {
       // Fall back to plain playback
@@ -267,14 +289,20 @@ export class TtsAudioProcessor {
     }
   }
 
-  /** Set delay/echo amount (0 = none, 1 = max). */
+  /** Set delay/echo amount (0 = none, 1 = max). Controls both delay taps. */
   setDelayAmount(amount: number) {
     if (!this.ctx || !this.delaySend || !this.delayReturn || !this.delayFeedback) return
     const now = this.ctx.currentTime
+    // Primary delay tap (faster, louder)
     this.delaySend.gain.setTargetAtTime(amount, now, 0.05)
     this.delayReturn.gain.setTargetAtTime(amount * 0.6, now, 0.05)
-    // More feedback at higher amounts for longer echo trails
     this.delayFeedback.gain.setTargetAtTime(0.2 + amount * 0.3, now, 0.05)
+    // Second delay tap (slower, quieter — sits behind primary for layered echo)
+    if (this.delay2Send && this.delay2Return && this.delay2Feedback) {
+      this.delay2Send.gain.setTargetAtTime(amount * 0.8, now, 0.05)
+      this.delay2Return.gain.setTargetAtTime(amount * 0.4, now, 0.05)
+      this.delay2Feedback.gain.setTargetAtTime(0.15 + amount * 0.2, now, 0.05)
+    }
   }
 
   setVolume(vol: number) {

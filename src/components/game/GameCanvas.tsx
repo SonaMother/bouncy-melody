@@ -41,7 +41,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v2.2.0'  // reverb send fix, delay added, genre cleanup, organic SFX
+  const GAME_VERSION = 'v2.3.0'  // real creature SFX, angelic pad, layered delay, piano lib
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -179,12 +179,25 @@ export default function GameCanvas({
 
   const checkTtsMilestone = useCallback((jumpCount: number) => {
     if (!ttsEnabledRef.current) return
-    // Trigger every 25 jumps (was 20 — increased spacing per user request)
-    const milestone = Math.floor(jumpCount / 25) * 25
+    // Trigger every 15 jumps (was 25 — user reported massive delay between lines)
+    const milestone = Math.floor(jumpCount / 15) * 15
     if (milestone > 0 && milestone > lastTtsMilestone.current) {
       lastTtsMilestone.current = milestone
       speakMotivational()
+      return
     }
+    // Fallback: onJumpMulti schedules steps in the future (85ms intervals),
+    // so getJumpCount() returns the PRE-schedule count. Re-check after the
+    // scheduled steps have executed to catch milestones from multi-jumps.
+    setTimeout(() => {
+      if (!ttsEnabledRef.current || !musicRef.current) return
+      const updatedCount = musicRef.current.getJumpCount()
+      const updatedMilestone = Math.floor(updatedCount / 15) * 15
+      if (updatedMilestone > 0 && updatedMilestone > lastTtsMilestone.current) {
+        lastTtsMilestone.current = updatedMilestone
+        speakMotivational()
+      }
+    }, 600)
   }, [speakMotivational])
 
   // Reset TTS milestone tracking on new game (FIXES: "lost momentum = no speeches")
@@ -535,6 +548,7 @@ export default function GameCanvas({
         onJump: (kind) => {
           music.onJump(kind)
           playSfx('jump')
+          if (navigator.vibrate) navigator.vibrate(12)  // tiny vibration on every jump
           setCombo(state.combo)
           setMusicStep(state.musicStep)
           setActiveLayers([...music.getActiveLayers()])
@@ -544,6 +558,7 @@ export default function GameCanvas({
         onJumpMulti: (count, kind) => {
           music.onJumpMulti(count, kind)
           if (kind === 'progress') playSfx('jump')
+          if (navigator.vibrate) navigator.vibrate(12)  // tiny vibration on every jump
           setCombo(state.combo)
           setMusicStep(state.musicStep)
           setActiveLayers([...music.getActiveLayers()])

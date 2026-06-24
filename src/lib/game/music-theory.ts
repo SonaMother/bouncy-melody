@@ -311,7 +311,7 @@ export const GENRE_CONFIGS: Record<MusicGenre, GenreConfig> = {
     reverbAmount: 0.45,
     delayAmount: 0.35,
     padVolume: 0.18,  // chord pad — audible bed (was too quiet)
-    bassVolume: 0.34,
+    bassVolume: 0.42,  // louder bass (was 0.34)
     melodyVolume: 0.20,
     chordStabVolume: 0.08,
     melodyOscType: 'sine',
@@ -325,7 +325,7 @@ export const GENRE_CONFIGS: Record<MusicGenre, GenreConfig> = {
     reverbAmount: 0.65,         // more reverb — spacious
     delayAmount: 0.5,           // more delay — echoes
     padVolume: 0.20,            // atmospheric pad — audible (was too quiet)
-    bassVolume: 0.30,
+    bassVolume: 0.38,  // louder bass (was 0.30)
     melodyVolume: 0.17,
     chordStabVolume: 0.06,
     melodyOscType: 'triangle',  // softer, more mysterious
@@ -339,7 +339,7 @@ export const GENRE_CONFIGS: Record<MusicGenre, GenreConfig> = {
     reverbAmount: 0.25,         // tighter, less wash
     delayAmount: 0.28,          // dotted-eighth delay for that 80s feel
     padVolume: 0.15,           // lush pad — audible bed
-    bassVolume: 0.40,           // punchy driving bass
+    bassVolume: 0.48,           // louder driving bass (was 0.40)
     melodyVolume: 0.20,
     chordStabVolume: 0.10,
     melodyOscType: 'sawtooth',  // bright synth lead

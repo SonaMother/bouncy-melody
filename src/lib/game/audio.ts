@@ -59,6 +59,9 @@ export class MusicEngine {
   private padVoices: { osc: OscillatorNode; gain: GainNode }[] = []
   private padTargetFreqs: number[] = []
   private padCurrentChord: ChordDef
+  // ---- Angelic high pad (chord tones in higher register — the "pad" layer) ----
+  private angelVoices: { osc: OscillatorNode; gain: GainNode }[] = []
+  private angelTargetFreqs: number[] = []
 
   // ---- Music state ----
   private progressionEngine: ProgressionEngine
@@ -229,13 +232,14 @@ export class MusicEngine {
     this.setPadChord(this.currentChord)
   }
 
-  // ---- Continuous bass pad ----
+  // ---- Continuous bass pad + angelic high pad ----
 
   private startPad() {
     if (!this.ctx || !this.masterGain || !this.reverbBus) return
-    // 3 voices: root, fifth, octave — gives a warm harmonic bed
-    const intervals = [0, 7, 12]
-    for (const interval of intervals) {
+
+    // BASS PAD: root, fifth, octave in low register (warm harmonic bed)
+    const bassIntervals = [0, 7, 12]
+    for (const interval of bassIntervals) {
       const osc = this.ctx.createOscillator()
       const gain = this.ctx.createGain()
       const filter = this.ctx.createBiquadFilter()
@@ -244,7 +248,7 @@ export class MusicEngine {
       osc.frequency.value = midiToFreq(this.currentChord.bassNote + interval)
 
       filter.type = 'lowpass'
-      filter.frequency.value = 1800  // brighter — was 600 (too muffled/in audible)
+      filter.frequency.value = 1800
       filter.Q.value = 0.7
 
       gain.gain.value = 0
@@ -257,26 +261,69 @@ export class MusicEngine {
       this.padVoices.push({ osc, gain })
       this.padTargetFreqs.push(osc.frequency.value)
     }
+
+    // ANGELIC HIGH PAD: chord tones (root, third, fifth) in higher register
+    // This is the "angelic pad on top of bass" the user requested.
+    // Plays 2 octaves above the chord root for a shimmering, heavenly layer.
+    const chordTones = CHORDS[this.currentChord.type]  // e.g. [0, 4, 7] for major
+    for (const tone of chordTones) {
+      const osc = this.ctx.createOscillator()
+      const gain = this.ctx.createGain()
+      const filter = this.ctx.createBiquadFilter()
+
+      osc.type = 'triangle'  // softer, warmer for pad
+      // root + chord tone + 2 octaves up = angelic register
+      osc.frequency.value = midiToFreq(this.currentChord.root + tone + 24)
+
+      filter.type = 'lowpass'
+      filter.frequency.value = 3000  // bright enough to shimmer
+      filter.Q.value = 0.5
+
+      gain.gain.value = 0
+
+      osc.connect(filter)
+      filter.connect(gain)
+      gain.connect(this.masterGain)
+      gain.connect(this.reverbBus)  // heavy reverb on angel pad = heavenly
+      osc.start()
+      this.angelVoices.push({ osc, gain })
+      this.angelTargetFreqs.push(osc.frequency.value)
+    }
   }
 
   private setPadVolume(v: number) {
     if (!this.ctx) return
     const t = this.ctx.currentTime
+    // Bass pad volume
     for (const voice of this.padVoices) {
       voice.gain.gain.cancelScheduledValues(t)
       voice.gain.gain.linearRampToValueAtTime(v, t + 1.2)
+    }
+    // Angelic high pad volume (slightly louder so it's audible as the "pad" layer)
+    for (const voice of this.angelVoices) {
+      voice.gain.gain.cancelScheduledValues(t)
+      voice.gain.gain.linearRampToValueAtTime(v * 0.7, t + 1.2)
     }
   }
 
   private setPadChord(chord: ChordDef) {
     if (!this.ctx) return
     const t = this.ctx.currentTime
-    const intervals = [0, 7, 12]
+    // Update bass pad (root, fifth, octave)
+    const bassIntervals = [0, 7, 12]
     for (let i = 0; i < this.padVoices.length; i++) {
       const voice = this.padVoices[i]
-      const newFreq = midiToFreq(chord.bassNote + intervals[i])
+      const newFreq = midiToFreq(chord.bassNote + bassIntervals[i])
       voice.osc.frequency.cancelScheduledValues(t)
-      // Slow portamento glide — lofi pad feel
+      voice.osc.frequency.setValueAtTime(voice.osc.frequency.value, t)
+      voice.osc.frequency.exponentialRampToValueAtTime(newFreq, t + 1.0)
+    }
+    // Update angelic pad (chord tones 2 octaves up)
+    const chordTones = CHORDS[chord.type]
+    for (let i = 0; i < this.angelVoices.length && i < chordTones.length; i++) {
+      const voice = this.angelVoices[i]
+      const newFreq = midiToFreq(chord.root + chordTones[i] + 24)
+      voice.osc.frequency.cancelScheduledValues(t)
       voice.osc.frequency.setValueAtTime(voice.osc.frequency.value, t)
       voice.osc.frequency.exponentialRampToValueAtTime(newFreq, t + 1.0)
     }
