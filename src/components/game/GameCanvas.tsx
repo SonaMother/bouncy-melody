@@ -41,7 +41,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v2.1.0'  // TTS rework, SFX, weather, Aurora genre, menu polish
+  const GAME_VERSION = 'v2.2.0'  // reverb send fix, delay added, genre cleanup, organic SFX
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -78,6 +78,7 @@ export default function GameCanvas({
   // TTS settings — voice ON by default per user request
   const [ttsEnabled, setTtsEnabled] = useState<boolean>(true)
   const [ttsReverb, setTtsReverb] = useState<number>(0.45)
+  const [ttsDelay, setTtsDelay] = useState<number>(0.35)
   const [ttsVolume, setTtsVolume] = useState<number>(1.0)
   // SFX settings — creature sounds ON by default
   const [sfxEnabled, setSfxEnabled] = useState<boolean>(true)
@@ -100,8 +101,10 @@ export default function GameCanvas({
   const ttsQueueRef = useRef<NonRepeatingQueue>(new NonRepeatingQueue(TTS_MESSAGES.length))
   const ttsProcessorRef = useRef<TtsAudioProcessor | null>(null)
   const activeTtsAudioRef = useRef<HTMLAudioElement | null>(null)
+  const subtitleShownRef = useRef<boolean>(false)
   const ttsEnabledRef = useRef(ttsEnabled)
   const ttsReverbRef = useRef(ttsReverb)
+  const ttsDelayRef = useRef(ttsDelay)
   const ttsVolumeRef = useRef(ttsVolume)
   const sfxEnabledRef = useRef(sfxEnabled)
   const sfxVolumeRef = useRef(sfxVolume)
@@ -109,11 +112,12 @@ export default function GameCanvas({
   const speakMotivational = useCallback(() => {
     if (!ttsEnabledRef.current) return
 
-    // Lazy-init the Web Audio reverb graph on first speak
+    // Lazy-init the Web Audio send graph on first speak
     if (!ttsProcessorRef.current) {
       const proc = new TtsAudioProcessor()
       proc.init()
       proc.setReverbAmount(ttsReverbRef.current)
+      proc.setDelayAmount(ttsDelayRef.current)
       proc.setVolume(ttsVolumeRef.current)
       ttsProcessorRef.current = proc
     }
@@ -126,11 +130,30 @@ export default function GameCanvas({
     audio.volume = ttsVolumeRef.current
     activeTtsAudioRef.current = audio
 
-    // Route through reverb graph
+    // Route through send graph (dry + reverb + delay)
     ttsProcessorRef.current.connect(audio)
 
+    // Don't show subtitle yet — wait for audio to actually start playing
+    // (FIXES: subtitle starting way too early, before audio begins)
+    subtitleShownRef.current = false
+    const showSubtitle = () => {
+      if (subtitleShownRef.current) return  // prevent double-show
+      subtitleShownRef.current = true
+      setCurrentSubtitle(msg)
+      // Subtitle lasts exactly as long as the audio (no +2s padding — user said too long)
+      if (audio.duration && isFinite(audio.duration) && audio.duration > 0) {
+        setSubtitleTimer(audio.duration)
+      } else {
+        // Fallback: estimate from message length (~18 chars/sec)
+        setSubtitleTimer(Math.max(2, msg.length / 18))
+      }
+    }
+
+    audio.addEventListener('playing', showSubtitle, { once: true })
+
     audio.play().catch(() => {
-      // Fallback to Web Speech API if audio play fails
+      // Fallback to Web Speech API if audio play fails — show subtitle immediately
+      showSubtitle()
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         window.speechSynthesis.cancel()
         const utterance = new SpeechSynthesisUtterance(msg)
@@ -141,30 +164,13 @@ export default function GameCanvas({
       }
     })
 
-    // Show subtitle immediately
-    setCurrentSubtitle(msg)
-
-    // Sync subtitle duration to actual audio duration + 2s padding
-    const applyDuration = () => {
-      if (audio.duration && isFinite(audio.duration) && audio.duration > 0) {
-        setSubtitleTimer(audio.duration + 2)
-      } else {
-        // Fallback: estimate from message length (~18 chars/sec)
-        const estimated = Math.max(3, msg.length / 18) + 2
-        setSubtitleTimer(estimated)
+    // Fallback: if 'playing' event doesn't fire within 500ms, show subtitle anyway
+    // (covers edge cases where the event is missed)
+    setTimeout(() => {
+      if (audio.readyState > 0 && !subtitleShownRef.current) {
+        showSubtitle()
       }
-    }
-    if (audio.duration && isFinite(audio.duration) && audio.duration > 0) {
-      applyDuration()
-    } else {
-      audio.addEventListener('loadedmetadata', applyDuration, { once: true })
-      setTimeout(() => {
-        if (!audio.duration || !isFinite(audio.duration)) {
-          const estimated = Math.max(3, msg.length / 18) + 2
-          setSubtitleTimer(estimated)
-        }
-      }, 600)
-    }
+    }, 500)
 
     audio.addEventListener('ended', () => {
       if (activeTtsAudioRef.current === audio) activeTtsAudioRef.current = null
@@ -195,6 +201,7 @@ export default function GameCanvas({
 
   useEffect(() => { ttsEnabledRef.current = ttsEnabled }, [ttsEnabled])
   useEffect(() => { ttsReverbRef.current = ttsReverb }, [ttsReverb])
+  useEffect(() => { ttsDelayRef.current = ttsDelay }, [ttsDelay])
   useEffect(() => { ttsVolumeRef.current = ttsVolume }, [ttsVolume])
   useEffect(() => { sfxEnabledRef.current = sfxEnabled }, [sfxEnabled])
   useEffect(() => { sfxVolumeRef.current = sfxVolume }, [sfxVolume])
@@ -204,6 +211,13 @@ export default function GameCanvas({
       sfxRef.current.setVolume(sfxVolume)
     }
   }, [sfxEnabled, sfxVolume])
+  useEffect(() => {
+    if (ttsProcessorRef.current) {
+      ttsProcessorRef.current.setReverbAmount(ttsReverb)
+      ttsProcessorRef.current.setDelayAmount(ttsDelay)
+      ttsProcessorRef.current.setVolume(ttsVolume)
+    }
+  }, [ttsReverb, ttsDelay, ttsVolume])
 
   useEffect(() => {
     weatherRef.current.setWeather(weather)
@@ -242,11 +256,12 @@ export default function GameCanvas({
     if (typeof window !== 'undefined') {
       localStorage.setItem('bouncy-tts', String(ttsEnabled))
       localStorage.setItem('bouncy-tts-reverb', String(ttsReverb))
+      localStorage.setItem('bouncy-tts-delay', String(ttsDelay))
       localStorage.setItem('bouncy-tts-volume', String(ttsVolume))
       localStorage.setItem('bouncy-sfx', String(sfxEnabled))
       localStorage.setItem('bouncy-sfx-volume', String(sfxVolume))
     }
-  }, [ttsEnabled, ttsReverb, ttsVolume, sfxEnabled, sfxVolume])
+  }, [ttsEnabled, ttsReverb, ttsDelay, ttsVolume, sfxEnabled, sfxVolume])
 
   useEffect(() => {
     if (subtitleTimer <= 0) return
@@ -301,7 +316,7 @@ export default function GameCanvas({
       setSelectedCharacter(storedChar)
     }
     const storedGenre = localStorage.getItem('bouncy-genre') as MusicGenre
-    if (storedGenre === 'lofi' || storedGenre === 'mystic' || storedGenre === 'synthwave' || storedGenre === 'pop' || storedGenre === 'requiem' || storedGenre === 'aurora') {
+    if (storedGenre === 'lofi' || storedGenre === 'mystic' || storedGenre === 'synthwave') {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedGenre(storedGenre)
     }
@@ -320,6 +335,14 @@ export default function GameCanvas({
       if (!isNaN(r) && r >= 0 && r <= 1) {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setTtsReverb(r)
+      }
+    }
+    const storedDelay = localStorage.getItem('bouncy-tts-delay')
+    if (storedDelay !== null) {
+      const d = parseFloat(storedDelay)
+      if (!isNaN(d) && d >= 0 && d <= 1) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setTtsDelay(d)
       }
     }
     const storedVol = localStorage.getItem('bouncy-tts-volume')
@@ -940,16 +963,16 @@ export default function GameCanvas({
             {/* Genre + Voice — compact row */}
             <div className="w-full max-w-[340px]">
               <div className="text-[9px] uppercase tracking-[0.15em] text-white/40 font-bold text-center mb-1.5 text-outline-sm">Genre</div>
-              <div className="grid grid-cols-6 gap-1 mb-2">
+              <div className="grid grid-cols-3 gap-1.5 mb-2">
                 {(Object.keys(GENRE_CONFIGS) as MusicGenre[]).map((genre) => {
                   const isSelected = selectedGenre === genre
                   const config = GENRE_CONFIGS[genre]
-                  const genreHue = genre === 'lofi' ? 200 : genre === 'mystic' ? 280 : genre === 'synthwave' ? 320 : genre === 'pop' ? 350 : genre === 'requiem' ? 210 : 165
+                  const genreHue = genre === 'lofi' ? 200 : genre === 'mystic' ? 280 : 320
                   return (
                     <button
                       key={genre}
                       onClick={() => setSelectedGenre(genre)}
-                      className="rounded py-1.5 transition-all"
+                      className="rounded py-2 transition-all"
                       style={{
                         background: isSelected
                           ? `linear-gradient(135deg, hsl(${genreHue}, 70%, 45%), hsl(${genreHue}, 75%, 28%))`
@@ -959,7 +982,7 @@ export default function GameCanvas({
                           : '1px solid rgba(255,255,255,0.12)',
                       }}
                     >
-                      <span className="text-[9px] font-bold text-outline-sm" style={{ color: isSelected ? 'white' : 'rgba(255,255,255,0.6)' }}>
+                      <span className="text-[10px] font-bold text-outline-sm" style={{ color: isSelected ? 'white' : 'rgba(255,255,255,0.6)' }}>
                         {config.name}
                       </span>
                     </button>
@@ -1040,6 +1063,23 @@ export default function GameCanvas({
                         onChange={(e) => setTtsReverb(parseFloat(e.target.value))}
                         className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
                         style={{ background: `linear-gradient(to right, hsl(280, 70%, 50%) ${ttsReverb * 100}%, rgba(255,255,255,0.1) ${ttsReverb * 100}%)` }}
+                      />
+                    </div>
+                    {/* Voice Echo/Delay */}
+                    <div>
+                      <div className="flex justify-between items-center mb-0.5">
+                        <span className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm">Voice Echo</span>
+                        <span className="text-[8px] text-white/80 font-mono text-outline-sm">{Math.round(ttsDelay * 100)}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        value={ttsDelay}
+                        onChange={(e) => setTtsDelay(parseFloat(e.target.value))}
+                        className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                        style={{ background: `linear-gradient(to right, hsl(200, 70%, 50%) ${ttsDelay * 100}%, rgba(255,255,255,0.1) ${ttsDelay * 100}%)` }}
                       />
                     </div>
                     {/* Voice Volume */}

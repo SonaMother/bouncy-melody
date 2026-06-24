@@ -244,7 +244,8 @@ export class MusicEngine {
       osc.frequency.value = midiToFreq(this.currentChord.bassNote + interval)
 
       filter.type = 'lowpass'
-      filter.frequency.value = 600
+      filter.frequency.value = 1800  // brighter — was 600 (too muffled/in audible)
+      filter.Q.value = 0.7
 
       gain.gain.value = 0
 
@@ -382,7 +383,7 @@ export class MusicEngine {
     const genre = this.progressionEngine.getGenre()
     const config = GENRE_CONFIGS[genre]
 
-    // If the genre has pre-composed melodies, use those (doom/requiem/pop)
+    // If the genre has pre-composed melodies, use those (none currently — kept for future)
     if (config.precomposedMelodies) {
       const progIdx = this.progressionEngine.getProgressionIndex()
       const melodies = config.precomposedMelodies[progIdx % config.precomposedMelodies.length]
@@ -518,13 +519,7 @@ export class MusicEngine {
       return
     }
 
-    // Pop uses a punchy root-octave bass
-    if (genre === 'pop') {
-      this.playPopBass(time)
-      return
-    }
-
-    // Lofi/Mystic/Doom: walking bass
+    // Lofi/Mystic: walking bass
     const target = this.currentChord.bassNote
     let note = this.lastBassNote
 
@@ -576,20 +571,6 @@ export class MusicEngine {
     this.synthwaveArpStep++
     this.lastBassNote = note
     this.playBassVoice(note, 0.9, t)
-  }
-
-  /** Pop bass — punchy root-octave pattern */
-  private popBassStep = 0
-  private playPopBass(time?: number) {
-    if (!this.ctx) return
-    const t = time ?? this.ctx.currentTime
-    const chord = this.currentChord
-    const pattern = [0, 0, 12, 0]
-    const offset = pattern[this.popBassStep % pattern.length]
-    const note = chord.bassNote + offset
-    this.popBassStep++
-    this.lastBassNote = note
-    this.playBassVoice(note, 0.85, t)
   }
 
   // ---- Synthesis: warm Rhodes-like electric piano voice ----

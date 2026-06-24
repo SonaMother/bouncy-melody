@@ -1,93 +1,99 @@
-// Cute Creature SFX Engine — Procedurally synthesized creature sounds.
+// Cute Creature SFX Engine — Organic procedural synthesis.
 //
-// Instead of shipping audio files (which are hard to source, license, and
-// bloat the bundle), we synthesize cute creature sounds with Web Audio API.
-// This gives us:
-//   - Endless variety (slight randomization per call)
-//   - Tiny bundle size (no audio files)
-//   - Multiple sound sets per action (jump, land, boost, break, etc.)
-//   - Non-repeating shuffle per action (no back-to-back repeats)
+// Instead of simple oscillator beeps, this uses:
+//   - Formant filtering (creates vowel-like creature vocalizations)
+//   - Pitched noise bursts with envelopes (breathy chirps)
+//   - Amplitude modulation (purring/tremolo)
+//   - Multi-layer synthesis (body + breath + overtone)
+//   - Randomized pitch/timing per call (never sounds machine-gun)
 //
-// Sound design inspired by:
-//   - Cute baby animal chirps (pitched-up sine + triangle)
-//   - Bouncy cartoon sounds (frequency sweeps)
-//   - Soft purrs (low-frequency vibrato)
-//   - Pop cat / bongo cat meme vibes (short percussive blips)
+// Each action has 4-6 variants drawn via non-repeating shuffle.
+// Sounds designed to feel like cute baby animals / small creatures.
 
 import { NonRepeatingQueue } from './tts-engine'
 
 export type SfxAction = 'jump' | 'land' | 'boost' | 'break' | 'bouncy' | 'gameover'
 
 interface SfxParams {
-  freq: number          // base frequency
-  freqEnd: number       // ending frequency (for sweeps)
-  duration: number      // seconds
+  // Body oscillator (the main voice)
+  freq: number
+  freqEnd: number
+  freqWobble?: number  // cents of random pitch wobble per note
+  duration: number
   oscType: OscillatorType
   volume: number
-  attack: number        // 0-1 portion of duration for attack
-  vibratoRate?: number  // Hz
-  vibratoDepth?: number // cents
-  harmonic2?: number    // multiplier for 2nd oscillator (0 = none)
-  harmonic2Vol?: number // volume of 2nd oscillator
-  noise?: number        // 0-1 mix of filtered noise (for texture)
+  attack: number       // 0-1 portion of duration
+  vibratoRate?: number
+  vibratoDepth?: number
+  // Formant filter (creates vowel-like creature quality)
+  formantFreq?: number  // Hz — mouth resonance
+  formantQ?: number     // resonance sharpness
+  // Breath layer (noise burst, gives organic texture)
+  breathVolume?: number
+  breathFilter?: number // Hz lowpass for breath
+  // Overtone (second oscillator for richness)
+  harmonic2?: number    // multiplier
+  harmonic2Vol?: number
+  // Pitch glide curve (0 = linear, 1 = exponential)
+  glideCurve?: number
 }
 
-// Each action has multiple sound variants. We pick from them using a
-// non-repeating shuffle so the same variant never plays twice in a row.
 const SFX_PRESETS: Record<SfxAction, SfxParams[]> = {
   jump: [
-    // Cute upward chirp — like a baby bird "peep!"
-    { freq: 600, freqEnd: 900, duration: 0.12, oscType: 'sine', volume: 0.25, attack: 0.05, vibratoRate: 8, vibratoDepth: 30 },
-    // Higher sweet chirp
-    { freq: 800, freqEnd: 1200, duration: 0.10, oscType: 'sine', volume: 0.22, attack: 0.05, vibratoRate: 10, vibratoDepth: 25 },
-    // Bouncy "boing" — triangle sweep
-    { freq: 400, freqEnd: 700, duration: 0.15, oscType: 'triangle', volume: 0.28, attack: 0.04 },
+    // Cute upward chirp — "wee!" (baby bird-like)
+    { freq: 500, freqEnd: 880, duration: 0.14, oscType: 'sine', volume: 0.28, attack: 0.04, vibratoRate: 7, vibratoDepth: 35, formantFreq: 1200, formantQ: 4, breathVolume: 0.06, breathFilter: 2000 },
+    // Higher sweet peep
+    { freq: 700, freqEnd: 1100, duration: 0.11, oscType: 'sine', volume: 0.25, attack: 0.05, vibratoRate: 9, vibratoDepth: 30, formantFreq: 1500, formantQ: 5, breathVolume: 0.05, breathFilter: 2500 },
+    // Bouncy "boing" with wobble
+    { freq: 380, freqEnd: 660, duration: 0.16, oscType: 'triangle', volume: 0.30, attack: 0.03, vibratoRate: 12, vibratoDepth: 60, formantFreq: 900, formantQ: 3, freqWobble: 15 },
     // Soft "wheee" — sine with vibrato
-    { freq: 700, freqEnd: 1000, duration: 0.14, oscType: 'sine', volume: 0.24, attack: 0.06, vibratoRate: 6, vibratoDepth: 40 },
-    // Pop cat style — short blip
-    { freq: 900, freqEnd: 1100, duration: 0.08, oscType: 'square', volume: 0.18, attack: 0.02, harmonic2: 1.5, harmonic2Vol: 0.08 },
+    { freq: 600, freqEnd: 920, duration: 0.13, oscType: 'sine', volume: 0.26, attack: 0.06, vibratoRate: 6, vibratoDepth: 45, formantFreq: 1100, formantQ: 4, breathVolume: 0.04 },
+    // Pop-cat style blip with harmonic
+    { freq: 850, freqEnd: 1050, duration: 0.09, oscType: 'sine', volume: 0.22, attack: 0.02, harmonic2: 1.5, harmonic2Vol: 0.10, formantFreq: 1800, formantQ: 6 },
   ],
   land: [
-    // Soft thud + chirp — landing on platform
-    { freq: 300, freqEnd: 200, duration: 0.10, oscType: 'sine', volume: 0.20, attack: 0.02, noise: 0.15 },
-    // Cute "bup" — short low blip
-    { freq: 250, freqEnd: 180, duration: 0.08, oscType: 'triangle', volume: 0.22, attack: 0.02 },
-    // Pitter-patter — two quick notes
-    { freq: 400, freqEnd: 350, duration: 0.06, oscType: 'sine', volume: 0.18, attack: 0.01, harmonic2: 2, harmonic2Vol: 0.06 },
-    // Bongo cat style — percussive
-    { freq: 200, freqEnd: 150, duration: 0.10, oscType: 'triangle', volume: 0.24, attack: 0.01, noise: 0.2 },
+    // Soft "bup" — landing thud + tiny chirp
+    { freq: 280, freqEnd: 180, duration: 0.10, oscType: 'sine', volume: 0.22, attack: 0.02, formantFreq: 600, formantQ: 3, breathVolume: 0.10, breathFilter: 800 },
+    // Cute "pff" — soft exhale on landing
+    { freq: 220, freqEnd: 140, duration: 0.09, oscType: 'triangle', volume: 0.20, attack: 0.02, formantFreq: 500, formantQ: 2, breathVolume: 0.15, breathFilter: 600 },
+    // Pitter-patter — quick double note
+    { freq: 380, freqEnd: 320, duration: 0.07, oscType: 'sine', volume: 0.18, attack: 0.01, harmonic2: 2, harmonic2Vol: 0.06, formantFreq: 1000, formantQ: 4 },
+    // Bongo-cat percussive
+    { freq: 180, freqEnd: 120, duration: 0.11, oscType: 'triangle', volume: 0.24, attack: 0.01, formantFreq: 400, formantQ: 2, breathVolume: 0.12, breathFilter: 500 },
   ],
   boost: [
-    // Excited upward sweep — "wheee!"
-    { freq: 500, freqEnd: 1400, duration: 0.25, oscType: 'sine', volume: 0.30, attack: 0.04, vibratoRate: 12, vibratoDepth: 50 },
-    // Sparkle — high shimmer
-    { freq: 1000, freqEnd: 1800, duration: 0.20, oscType: 'sine', volume: 0.25, attack: 0.05, harmonic2: 1.5, harmonic2Vol: 0.15 },
+    // Excited upward "wheee!"
+    { freq: 450, freqEnd: 1300, duration: 0.26, oscType: 'sine', volume: 0.32, attack: 0.04, vibratoRate: 11, vibratoDepth: 55, formantFreq: 1400, formantQ: 4, breathVolume: 0.08, breathFilter: 3000, glideCurve: 0.7 },
+    // Sparkle shimmer
+    { freq: 900, freqEnd: 1700, duration: 0.22, oscType: 'sine', volume: 0.26, attack: 0.05, harmonic2: 1.5, harmonic2Vol: 0.16, formantFreq: 2000, formantQ: 5 },
     // Magical chime
-    { freq: 800, freqEnd: 1600, duration: 0.22, oscType: 'triangle', volume: 0.28, attack: 0.03, harmonic2: 2, harmonic2Vol: 0.12 },
+    { freq: 750, freqEnd: 1500, duration: 0.24, oscType: 'triangle', volume: 0.28, attack: 0.03, harmonic2: 2, harmonic2Vol: 0.13, formantFreq: 1800, formantQ: 4, vibratoRate: 8, vibratoDepth: 30 },
     // Joyful squeak
-    { freq: 700, freqEnd: 1300, duration: 0.18, oscType: 'sine', volume: 0.26, attack: 0.04, vibratoRate: 14, vibratoDepth: 60 },
+    { freq: 650, freqEnd: 1250, duration: 0.20, oscType: 'sine', volume: 0.27, attack: 0.04, vibratoRate: 13, vibratoDepth: 65, formantFreq: 1300, formantQ: 5, breathVolume: 0.06 },
+    // Ascending trill
+    { freq: 550, freqEnd: 1400, duration: 0.22, oscType: 'sine', volume: 0.25, attack: 0.05, vibratoRate: 16, vibratoDepth: 80, formantFreq: 1500, formantQ: 4 },
   ],
   break: [
-    // Sad descending — "aww"
-    { freq: 500, freqEnd: 200, duration: 0.20, oscType: 'triangle', volume: 0.22, attack: 0.03 },
-    // Crack + chirp
-    { freq: 300, freqEnd: 150, duration: 0.15, oscType: 'square', volume: 0.20, attack: 0.01, noise: 0.3 },
+    // Sad descending "aww"
+    { freq: 480, freqEnd: 180, duration: 0.22, oscType: 'triangle', volume: 0.23, attack: 0.03, vibratoRate: 7, vibratoDepth: 35, formantFreq: 800, formantQ: 3 },
+    // Crack + whimper
+    { freq: 280, freqEnd: 140, duration: 0.16, oscType: 'square', volume: 0.20, attack: 0.01, formantFreq: 500, formantQ: 2, breathVolume: 0.18, breathFilter: 700 },
     // Tiny cry
-    { freq: 600, freqEnd: 300, duration: 0.18, oscType: 'sine', volume: 0.24, attack: 0.04, vibratoRate: 8, vibratoDepth: 40 },
+    { freq: 560, freqEnd: 280, duration: 0.19, oscType: 'sine', volume: 0.25, attack: 0.04, vibratoRate: 9, vibratoDepth: 45, formantFreq: 1000, formantQ: 4, breathVolume: 0.05 },
   ],
   bouncy: [
     // Springy boing
-    { freq: 350, freqEnd: 800, duration: 0.18, oscType: 'triangle', volume: 0.26, attack: 0.02, vibratoRate: 15, vibratoDepth: 80 },
-    // High bounce
-    { freq: 600, freqEnd: 1200, duration: 0.15, oscType: 'sine', volume: 0.24, attack: 0.03, vibratoRate: 12, vibratoDepth: 50 },
-    // Playful pop
-    { freq: 800, freqEnd: 1400, duration: 0.12, oscType: 'sine', volume: 0.22, attack: 0.02, harmonic2: 1.5, harmonic2Vol: 0.10 },
+    { freq: 320, freqEnd: 750, duration: 0.19, oscType: 'triangle', volume: 0.27, attack: 0.02, vibratoRate: 14, vibratoDepth: 90, formantFreq: 900, formantQ: 3 },
+    // High playful bounce
+    { freq: 560, freqEnd: 1150, duration: 0.16, oscType: 'sine', volume: 0.25, attack: 0.03, vibratoRate: 11, vibratoDepth: 55, formantFreq: 1200, formantQ: 4 },
+    // Pop bounce with harmonic
+    { freq: 750, freqEnd: 1350, duration: 0.13, oscType: 'sine', volume: 0.23, attack: 0.02, harmonic2: 1.5, harmonic2Vol: 0.11, formantFreq: 1600, formantQ: 5 },
   ],
   gameover: [
     // Sad descending — "aww, game over"
-    { freq: 600, freqEnd: 150, duration: 0.60, oscType: 'triangle', volume: 0.30, attack: 0.05, vibratoRate: 6, vibratoDepth: 30 },
-    // Melancholy
-    { freq: 500, freqEnd: 100, duration: 0.70, oscType: 'sine', volume: 0.28, attack: 0.08, vibratoRate: 4, vibratoDepth: 25 },
+    { freq: 580, freqEnd: 130, duration: 0.65, oscType: 'triangle', volume: 0.31, attack: 0.05, vibratoRate: 6, vibratoDepth: 30, formantFreq: 700, formantQ: 3, breathVolume: 0.08, breathFilter: 1000, glideCurve: 0.8 },
+    // Melancholy whimper
+    { freq: 480, freqEnd: 90, duration: 0.75, oscType: 'sine', volume: 0.29, attack: 0.08, vibratoRate: 5, vibratoDepth: 25, formantFreq: 600, formantQ: 3, breathVolume: 0.10, breathFilter: 800, glideCurve: 0.9 },
   ],
 }
 
@@ -149,9 +155,9 @@ export class CreatureSfxEngine {
     const idx = this.queues[action].next()
     const params = presets[idx]
 
-    // Slight randomization for variety (so even same preset sounds fresh)
-    const pitchVar = 0.95 + Math.random() * 0.1  // ±5%
-    const timeVar = 0.9 + Math.random() * 0.2     // ±10%
+    // Strong randomization per call so even the same preset sounds fresh
+    const pitchVar = 0.92 + Math.random() * 0.16  // ±8%
+    const timeVar = 0.88 + Math.random() * 0.24    // ±12%
 
     this.synthesize(params, pitchVar, timeVar)
   }
@@ -162,24 +168,40 @@ export class CreatureSfxEngine {
     const duration = params.duration * timeVar
     const startFreq = params.freq * pitchVar
     const endFreq = params.freqEnd * pitchVar
+    const wobble = (params.freqWobble || 0) * (Math.random() - 0.5)
 
-    // Main oscillator
+    // ---- Formant filter (creates vowel-like creature quality) ----
+    const formant = ctx.createBiquadFilter()
+    formant.type = 'bandpass'
+    formant.frequency.value = (params.formantFreq || 1000) * pitchVar
+    formant.Q.value = params.formantQ || 3
+
+    // ---- Main oscillator ----
     const osc = ctx.createOscillator()
     osc.type = params.oscType
-    osc.frequency.setValueAtTime(startFreq, now)
-    osc.frequency.exponentialRampToValueAtTime(Math.max(1, endFreq), now + duration)
+    const glideCurve = params.glideCurve ?? 0
+    if (glideCurve > 0.5) {
+      // Exponential glide (more natural for creature sounds)
+      osc.frequency.setValueAtTime(startFreq + wobble, now)
+      osc.frequency.exponentialRampToValueAtTime(Math.max(1, endFreq + wobble), now + duration)
+    } else {
+      // Linear glide
+      osc.frequency.setValueAtTime(startFreq + wobble, now)
+      osc.frequency.linearRampToValueAtTime(endFreq + wobble, now + duration)
+    }
 
-    // Gain envelope (ADSR-ish)
+    // Gain envelope (ADSR)
     const gain = ctx.createGain()
     const attackTime = duration * params.attack
-    const releaseTime = duration * 0.4
-    const sustainLevel = params.volume * 0.7
+    const releaseTime = duration * 0.45
+    const sustainLevel = params.volume * 0.75
     gain.gain.setValueAtTime(0, now)
     gain.gain.linearRampToValueAtTime(params.volume, now + attackTime)
     gain.gain.linearRampToValueAtTime(sustainLevel, now + attackTime + 0.01)
     gain.gain.exponentialRampToValueAtTime(0.001, now + duration)
 
-    osc.connect(gain)
+    osc.connect(formant)
+    formant.connect(gain)
     gain.connect(this.masterGain!)
 
     // Vibrato (LFO on frequency)
@@ -191,13 +213,13 @@ export class CreatureSfxEngine {
       lfo.connect(lfoGain)
       lfoGain.connect(osc.frequency)
       lfo.start(now)
-      lfo.stop(now + duration)
+      lfo.stop(now + duration + 0.05)
     }
 
     osc.start(now)
     osc.stop(now + duration + 0.05)
 
-    // Harmonic (2nd oscillator for richness)
+    // ---- Overtone (2nd oscillator for richness) ----
     if (params.harmonic2 && params.harmonic2Vol) {
       const osc2 = ctx.createOscillator()
       osc2.type = params.oscType
@@ -207,26 +229,38 @@ export class CreatureSfxEngine {
       gain2.gain.setValueAtTime(0, now)
       gain2.gain.linearRampToValueAtTime(params.harmonic2Vol, now + attackTime)
       gain2.gain.exponentialRampToValueAtTime(0.001, now + duration)
-      osc2.connect(gain2)
+      const formant2 = ctx.createBiquadFilter()
+      formant2.type = 'bandpass'
+      formant2.frequency.value = (params.formantFreq || 1000) * 1.3 * pitchVar
+      formant2.Q.value = params.formantQ || 3
+      osc2.connect(formant2)
+      formant2.connect(gain2)
       gain2.connect(this.masterGain!)
       osc2.start(now)
       osc2.stop(now + duration + 0.05)
     }
 
-    // Noise component (for texture — land/break sounds)
-    if (params.noise && params.noise > 0) {
+    // ---- Breath layer (filtered noise — organic texture) ----
+    if (params.breathVolume && params.breathVolume > 0) {
       const noiseBuffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * duration), ctx.sampleRate)
       const noiseData = noiseBuffer.getChannelData(0)
       for (let i = 0; i < noiseData.length; i++) {
-        noiseData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / noiseData.length, 2)
+        // Pink-ish noise with decay envelope
+        const env = Math.pow(1 - i / noiseData.length, 1.5)
+        noiseData[i] = (Math.random() * 2 - 1) * env
       }
       const noiseSrc = ctx.createBufferSource()
       noiseSrc.buffer = noiseBuffer
       const noiseFilter = ctx.createBiquadFilter()
       noiseFilter.type = 'lowpass'
-      noiseFilter.frequency.value = startFreq * 2
+      noiseFilter.frequency.value = (params.breathFilter || 1500) * pitchVar
+      noiseFilter.Q.value = 1
       const noiseGain = ctx.createGain()
-      noiseGain.gain.value = params.volume * params.noise
+      noiseGain.gain.value = params.breathVolume
+      // Breath has its own little attack
+      noiseGain.gain.setValueAtTime(0, now)
+      noiseGain.gain.linearRampToValueAtTime(params.breathVolume, now + attackTime * 0.5)
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration * 0.8)
       noiseSrc.connect(noiseFilter)
       noiseFilter.connect(noiseGain)
       noiseGain.connect(this.masterGain!)

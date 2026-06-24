@@ -279,7 +279,7 @@ const AURORA_PROG_3: ChordDef[] = [
 ]
 
 // ---- Genre configurations ----
-export type MusicGenre = 'lofi' | 'mystic' | 'synthwave' | 'pop' | 'requiem' | 'aurora'
+export type MusicGenre = 'lofi' | 'mystic' | 'synthwave'
 
 export interface GenreConfig {
   name: string
@@ -310,7 +310,7 @@ export const GENRE_CONFIGS: Record<MusicGenre, GenreConfig> = {
     masterFilterFreq: 5200,
     reverbAmount: 0.45,
     delayAmount: 0.35,
-    padVolume: 0.10,  // bumped — chord pad more audible on phone speakers
+    padVolume: 0.18,  // chord pad — audible bed (was too quiet)
     bassVolume: 0.34,
     melodyVolume: 0.20,
     chordStabVolume: 0.08,
@@ -324,7 +324,7 @@ export const GENRE_CONFIGS: Record<MusicGenre, GenreConfig> = {
     masterFilterFreq: 3800,     // darker
     reverbAmount: 0.65,         // more reverb — spacious
     delayAmount: 0.5,           // more delay — echoes
-    padVolume: 0.12,            // louder pad — atmospheric (bumped)
+    padVolume: 0.20,            // atmospheric pad — audible (was too quiet)
     bassVolume: 0.30,
     melodyVolume: 0.17,
     chordStabVolume: 0.06,
@@ -338,113 +338,12 @@ export const GENRE_CONFIGS: Record<MusicGenre, GenreConfig> = {
     masterFilterFreq: 8000,     // bright — lets the sawtooth shine
     reverbAmount: 0.25,         // tighter, less wash
     delayAmount: 0.28,          // dotted-eighth delay for that 80s feel
-    padVolume: 0.08,           // lush pad (bumped)
+    padVolume: 0.15,           // lush pad — audible bed
     bassVolume: 0.40,           // punchy driving bass
     melodyVolume: 0.20,
     chordStabVolume: 0.10,
     melodyOscType: 'sawtooth',  // bright synth lead
     bassOscType: 'square',      // punchy synth bass
-  },
-  pop: {
-    name: 'Pop',
-    description: 'Catchy hooks, singable melodies, bright energy.',
-    progressions: [POP_PROG_1, POP_PROG_2, POP_PROG_3],
-    // Pre-composed singable pop melodies — simple, catchy, follow chord tones
-    precomposedMelodies: [
-      // Prog 1 (C-G-Am-F): classic pop hook
-      // C: start on root (C), step up to E, G — bright opening
-      // G: descend from D to B — V chord tension
-      // Am: descend from C to A — vi chord, relative minor
-      // F: descend from A to F — IV chord, resolve back home
-      [
-        72, 76, 79, -1,   // C5 → E5 → G5 — over Cmaj9 (bright ascending)
-        74, 74, 71, -1,   // D5 → D5 → B4 — over G9 (hold then descend)
-        72, 72, 69, -1,   // C5 → C5 → A4 — over Am9 (descend to vi)
-        69, 69, 65, -1,   // A4 → A4 → F4 — over Fmaj9 (resolve down to IV)
-      ],
-      // Prog 2 (G-D-Em-C): singable in G
-      [
-        79, 79, 76, -1,   // G5 → G5 → E5 — over Gmaj9
-        74, 74, 71, -1,   // D5 → D5 → B4 — over D9
-        71, 71, 67, -1,   // B4 → B4 → G4 — over Em9
-        72, 72, 76, -1,   // C5 → C5 → E5 — over Cmaj9 (ascend back up)
-      ],
-      // Prog 3 (D-A-Bm-G): singable in D
-      [
-        74, 78, 81, -1,   // D5 → F#5 → A5 — over Dmaj9 (bright ascending)
-        76, 76, 73, -1,   // E5 → E5 → C#5 — over A9
-        71, 71, 66, -1,   // B4 → B4 → F#4 — over Bm9 (descend)
-        79, 79, 74, -1,   // G5 → G5 → D5 — over Gmaj9 (resolve)
-      ],
-    ],
-    masterFilterFreq: 7500,
-    reverbAmount: 0.28,
-    delayAmount: 0.15,
-    padVolume: 0.07,  // bumped
-    bassVolume: 0.42,
-    melodyVolume: 0.24,
-    chordStabVolume: 0.13,
-    melodyOscType: 'triangle',
-    bassOscType: 'square',
-  },
-  requiem: {
-    name: 'Requiem',
-    description: 'Emotional, beautiful, touching. Neo-classical ambient.',
-    progressions: [REQUIEM_PROG_1, REQUIEM_PROG_2, REQUIEM_PROG_3],
-    // Pre-composed melodies — Ólafur Arnalds / Nils Frahm style
-    // Simple, slow, beautiful phrases. Lots of rests to let notes breathe.
-    precomposedMelodies: [
-      // Prog 1 (Am9 - Fmaj9 - Cmaj9 - G9): gentle sorrow → warmth → home → tension
-      // Am9: start on the 5th (E), slowly descend to root (A) — gentle weeping
-      // Fmaj9: hold the 3rd (A), step up to the 9th (G) — warmth rising
-      // Cmaj9: descend from 5th (G) through 3rd (E) to root (C) — coming home
-      // G9: hold the 3rd (B), resolve to the 5th (D) — gentle tension, ready to loop
-      [
-        76, 76, 73, -1,   // E5 → E5 → A4 — over Am9 (gentle descent)
-        69, 69, 72, -1,   // A4 → A4 → C5 — over Fmaj9 (warmth rising)
-        79, 76, 72, -1,   // G5 → E5 → C5 — over Cmaj9 (coming home)
-        71, 71, 74, -1,   // B4 → B4 → D5 — over G9 (gentle tension)
-      ],
-      // Prog 2 (Em9 - Cmaj9 - Gmaj9 - D9): same pattern in G, higher
-      [
-        71, 71, 67, -1,   // B4 → B4 → G4 — over Em9 (gentle descent)
-        76, 76, 79, -1,   // E5 → E5 → G5 — over Cmaj9 (warmth)
-        74, 74, 71, -1,   // D5 → D5 → B4 — over Gmaj9 (home)
-        66, 66, 69, -1,   // F#4 → F#4 → A4 — over D9 (tension)
-      ],
-      // Prog 3 (Dm9 - Bbmaj9 - Fmaj9 - C9): warm and intimate
-      [
-        74, 74, 69, -1,   // D5 → D5 → A4 — over Dm9
-        70, 70, 74, -1,   // Bb4 → Bb4 → D5 — over Bbmaj9 (warmth)
-        77, 77, 72, -1,   // F5 → F5 → C5 — over Fmaj9 (home)
-        72, 72, 76, -1,   // C5 → C5 → E5 — over C9 (tension)
-      ],
-    ],
-    masterFilterFreq: 4000,     // warm but clear — lets the pure sine melody through
-    reverbAmount: 0.65,         // lots of reverb — creates space and emotion
-    delayAmount: 0.30,          // gentle echo
-    padVolume: 0.12,            // soft pad — atmospheric warmth (bumped)
-    bassVolume: 0.34,           // gentle bass — not crushing, supportive
-    melodyVolume: 0.22,         // clear melody — the emotional voice
-    chordStabVolume: 0.08,      // very soft chord stabs
-    melodyOscType: 'sine',      // pure sine — piano-like, clean, emotional
-    bassOscType: 'sine',        // soft sine bass — warm and gentle
-  },
-  aurora: {
-    name: 'Aurora',
-    description: 'Felt piano + strings. Luminous, cinematic, flowing arpeggios.',
-    progressions: [AURORA_PROG_1, AURORA_PROG_2, AURORA_PROG_3],
-    // Arpeggio melody mode — ping-pong 2 octaves through chord tones
-    melodyMode: 'arpeggio',
-    masterFilterFreq: 5500,     // warm but clear — lets the arpeggio shimmer
-    reverbAmount: 0.55,         // spacious — cathedral-like
-    delayAmount: 0.35,          // gentle echo for the rippling feel
-    padVolume: 0.14,            // lush string pad — the emotional bed
-    bassVolume: 0.32,           // supportive bass
-    melodyVolume: 0.20,         // arpeggio melody
-    chordStabVolume: 0.06,      // very soft
-    melodyOscType: 'triangle',  // triangle — felt-piano-ish, warm
-    bassOscType: 'sine',
   },
 }
 

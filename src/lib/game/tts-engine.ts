@@ -158,14 +158,25 @@ export function generateReverbImpulse(ctx: AudioContext, duration: number, decay
 // ====================================================================
 // TTS WEB AUDIO PROCESSOR
 // ====================================================================
-// Wraps an AudioContext with a reverb send/return graph so TTS audio
-// can be processed with adjustable reverb amount.
+// SEND architecture: dry signal stays at 100% always. Reverb and delay
+// are parallel SEND paths that ADD to the dry signal (never replace it).
+//
+// Graph:
+//   source → dryGain (always 1.0) ──────────────────→ masterGain → destination
+//         ├→ reverbSend → reverb → reverbReturn ──→  ↑
+//         └→ delaySend  → delay  → delayReturn  ──→  ↑
+//                                            └→ feedback → delay (echo loop)
 
 export class TtsAudioProcessor {
   private ctx: AudioContext | null = null
+  private dryGain: GainNode | null = null        // always 1.0 — dry never gets quieter
   private reverb: ConvolverNode | null = null
-  private dryGain: GainNode | null = null
-  private wetGain: GainNode | null = null
+  private reverbSend: GainNode | null = null     // send amount into reverb
+  private reverbReturn: GainNode | null = null   // return level from reverb
+  private delay: DelayNode | null = null
+  private delaySend: GainNode | null = null      // send amount into delay
+  private delayReturn: GainNode | null = null    // return level from delay
+  private delayFeedback: GainNode | null = null  // feedback for echo repeats
   private masterGain: GainNode | null = null
   private connectedElements = new WeakSet<HTMLAudioElement>()
 
@@ -175,20 +186,42 @@ export class TtsAudioProcessor {
       const Ctx = window.AudioContext || (window as any).webkitAudioContext
       this.ctx = new Ctx()
 
+      // Master output
       this.masterGain = this.ctx.createGain()
       this.masterGain.gain.value = 1.0
       this.masterGain.connect(this.ctx.destination)
 
+      // DRY path — ALWAYS 100%, never reduced (FIXES: dry getting quieter at high reverb)
       this.dryGain = this.ctx.createGain()
-      this.dryGain.gain.value = 0.55
+      this.dryGain.gain.value = 1.0
       this.dryGain.connect(this.masterGain)
 
+      // REVERB send/return
       this.reverb = this.ctx.createConvolver()
       this.reverb.buffer = generateReverbImpulse(this.ctx, 2.5, 2.5)
-      this.wetGain = this.ctx.createGain()
-      this.wetGain.gain.value = 0.45
-      this.reverb.connect(this.wetGain)
-      this.wetGain.connect(this.masterGain)
+      this.reverbSend = this.ctx.createGain()
+      this.reverbSend.gain.value = 0.45  // default reverb amount
+      this.reverbReturn = this.ctx.createGain()
+      this.reverbReturn.gain.value = 0.7  // return level (reverb is naturally quiet)
+      this.reverbSend.connect(this.reverb)
+      this.reverb.connect(this.reverbReturn)
+      this.reverbReturn.connect(this.masterGain)
+
+      // DELAY (echo) send/return with feedback
+      this.delay = this.ctx.createDelay(2.0)
+      this.delay.delayTime.value = 0.28  // ~1/8 note at 107 BPM — dotted-eighth feel
+      this.delaySend = this.ctx.createGain()
+      this.delaySend.gain.value = 0.3   // default delay amount
+      this.delayReturn = this.ctx.createGain()
+      this.delayReturn.gain.value = 0.5
+      this.delayFeedback = this.ctx.createGain()
+      this.delayFeedback.gain.value = 0.35  // echo repeats fade out gradually
+      this.delaySend.connect(this.delay)
+      this.delay.connect(this.delayReturn)
+      this.delayReturn.connect(this.masterGain)
+      // Feedback loop: delay output → feedback → delay input (echoes)
+      this.delay.connect(this.delayFeedback)
+      this.delayFeedback.connect(this.delay)
     } catch (e) {
       console.warn('TTS: Web Audio unavailable, using plain audio', e)
     }
@@ -200,29 +233,48 @@ export class TtsAudioProcessor {
     }
   }
 
-  /** Connect an audio element through the reverb graph (idempotent per element). */
+  /** Connect an audio element through the send graph (idempotent per element). */
   connect(audio: HTMLAudioElement) {
-    if (!this.ctx || !this.reverb || !this.dryGain || this.connectedElements.has(audio)) return
+    if (!this.ctx || !this.dryGain || !this.reverbSend || !this.delaySend || this.connectedElements.has(audio)) return
     try {
       const src = this.ctx.createMediaElementSource(audio)
+      // Dry (always full volume)
       src.connect(this.dryGain)
-      src.connect(this.reverb)
+      // Send to reverb
+      src.connect(this.reverbSend)
+      // Send to delay
+      src.connect(this.delaySend)
       this.connectedElements.add(audio)
     } catch {
       // Fall back to plain playback
     }
   }
 
+  /**
+   * Set reverb amount (0 = none, 1 = max). SEND architecture: dry stays at 100%,
+   * only the reverb return level changes.
+   */
   setReverbAmount(amount: number) {
-    if (!this.ctx || !this.dryGain || !this.wetGain) return
+    if (!this.ctx || !this.reverbSend || !this.reverbReturn) return
     const now = this.ctx.currentTime
-    this.dryGain.gain.setTargetAtTime(1 - amount, now, 0.05)
-    this.wetGain.gain.setTargetAtTime(amount, now, 0.05)
-    // Longer tail for higher amounts
+    // Send stays full (we want max signal into the reverb), return scales the output
+    this.reverbSend.gain.setTargetAtTime(1.0, now, 0.05)
+    this.reverbReturn.gain.setTargetAtTime(amount * 0.9, now, 0.05)
+    // Longer reverb tail for higher amounts
     if (this.reverb) {
-      const duration = 1.5 + amount * 2.5
+      const duration = 1.5 + amount * 3.0
       this.reverb.buffer = generateReverbImpulse(this.ctx, duration, 2.5)
     }
+  }
+
+  /** Set delay/echo amount (0 = none, 1 = max). */
+  setDelayAmount(amount: number) {
+    if (!this.ctx || !this.delaySend || !this.delayReturn || !this.delayFeedback) return
+    const now = this.ctx.currentTime
+    this.delaySend.gain.setTargetAtTime(amount, now, 0.05)
+    this.delayReturn.gain.setTargetAtTime(amount * 0.6, now, 0.05)
+    // More feedback at higher amounts for longer echo trails
+    this.delayFeedback.gain.setTargetAtTime(0.2 + amount * 0.3, now, 0.05)
   }
 
   setVolume(vol: number) {
