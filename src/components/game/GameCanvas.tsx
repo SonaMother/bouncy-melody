@@ -18,10 +18,15 @@ import {
   drawBackground,
   drawPlatform,
   drawAmbientParticles,
-  drawVignette,
-  drawFlash,
 } from '@/lib/game/render'
+import { drawVignette, drawFlash, WeatherSystem } from '@/lib/game/postfx'
 import { drawParticle, drawFloatingText } from '@/lib/game/particles'
+import {
+  TTS_MESSAGES,
+  NonRepeatingQueue,
+  TtsAudioProcessor,
+} from '@/lib/game/tts-engine'
+import { CreatureSfxEngine, type SfxAction } from '@/lib/game/creature-sfx'
 
 interface GameCanvasProps {
   onPhaseChange?: (phase: GamePhase) => void
@@ -36,17 +41,18 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v2.0.1'  // hotfix: restored Lofi/Mystic/Synthwave to v1 melody engine
+  const GAME_VERSION = 'v2.1.0'  // TTS rework, SFX, weather, Aurora genre, menu polish
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
   const musicRef = useRef<MusicEngine | null>(null)
+  const sfxRef = useRef<CreatureSfxEngine | null>(null)
+  const weatherRef = useRef<WeatherSystem>(new WeatherSystem())
   const rafRef = useRef<number>(0)
   const lastTimeRef = useRef<number>(0)
   const frameCountRef = useRef<number>(0)
   const sizeRef = useRef<{ w: number; h: number; dpr: number }>({ w: 0, h: 0, dpr: 1 })
   const lastTtsMilestone = useRef<number>(0)
-  const ttsEnabledRef = useRef(false)
 
   // Refs that mirror props/state so the animation loop can read live values
   // without having those values in its useEffect deps (which would cause the
@@ -69,7 +75,16 @@ export default function GameCanvas({
   const [currentChordName, setCurrentChordName] = useState<string>('')
   const [started, setStarted] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const [ttsEnabled, setTtsEnabled] = useState<boolean>(false)
+  // TTS settings — voice ON by default per user request
+  const [ttsEnabled, setTtsEnabled] = useState<boolean>(true)
+  const [ttsReverb, setTtsReverb] = useState<number>(0.45)
+  const [ttsVolume, setTtsVolume] = useState<number>(1.0)
+  // SFX settings — creature sounds ON by default
+  const [sfxEnabled, setSfxEnabled] = useState<boolean>(true)
+  const [sfxVolume, setSfxVolume] = useState<number>(0.7)
+  // Weather — snow by default (sub-pixel, optimized)
+  const [weather, setWeather] = useState<'none' | 'snow' | 'rain'>('snow')
+  const [showSettings, setShowSettings] = useState<boolean>(false)
   const [currentSubtitle, setCurrentSubtitle] = useState<string>('')
   const [subtitleTimer, setSubtitleTimer] = useState<number>(0)
   // Use fixed defaults to avoid hydration mismatch — localStorage loaded in useEffect after mount
@@ -77,51 +92,43 @@ export default function GameCanvas({
   const [selectedGenre, setSelectedGenre] = useState<MusicGenre>('lofi')
 
   // ---- TTS (Text-to-Speech) motivational voice ----
-  // Story: Our character climbs toward Arash, the NonExistent — a god-like figure
-  // in the sky who may or may not exist. Each milestone brings us closer to the truth.
-  const TTS_MESSAGES = [
-    // General motivation
-    'Amazing! Keep going!', 'You are doing great!', 'Beautiful jumping!',
-    'Keep climbing, you star!', 'Incredible rhythm!', 'Never give up!',
-    'You are unstoppable!', 'Fantastic progress!', 'Keep bouncing, keep dreaming!',
-    'You are a champion!', 'Every jump takes you higher!', 'Believe in yourself!',
-    'The sky is not the limit!', 'You make this look easy!', 'Pure perfection!',
-    // Story — Ah-Rash the NonExistent
-    'Ah-Rash waits for you at the top. Or does He?',
-    'They say Ah-Rash does not exist. Climb higher and find out.',
-    'The NonExistent watches. Can you reach Him?',
-    'Every jump brings you closer to Ah-Rash. Or closer to the truth.',
-    'Ah-Rash is the sky, and you are the climber.',
-    'Does Ah-Rash exist? Only the climb will tell.',
-    'The higher you go, the closer to the NonExistent you become.',
-    'Ah-Rash is not at the top. Ah-Rash IS the top.',
-    'Some say Ah-Rash is a myth. You are here to prove them wrong.',
-    'The NonExistent Ah-Rash. Can faith be reached by jumping?',
-    'Climb for Ah-Rash. Climb for truth. Climb for yourself.',
-    'Ah-Rash does not exist, yet you climb. That is faith.',
-    'The sky holds no Ah-Rash. The sky IS Ah-Rash.',
-    'You seek the NonExistent. The NonExistent seeks you.',
-    'Ah-Rash whispers: higher. Always higher.',
-    // New story lines — deeper reflections on the NonExistent
-    'The wind speaks of Ah-Rash. Can you hear it?',
-    'Each platform is a prayer. Each jump is an amen.',
-    'Ah-Rash is the question. Your climb is the answer.',
-    'The NonExistent was never at the top. The NonExistent is the climbing.',
-    'When you fall, Ah-Rash catches you in dreams.',
-    'Faith is jumping toward something that may not exist.',
-    'The sky is empty. The sky is Ah-Rash. Both are true.',
-    'You are not climbing toward Ah-Rash. You are becoming Ah-Rash.',
-    'The NonExistent does not wait. The NonExistent climbs with you.',
-    'Ah-Rash is the space between your heartbeats.',
-  ]
+  // Story: Our character climbs toward Ah-Rash, the NonExistent — a god-like
+  // figure in the sky who may or may not exist. Each milestone brings us
+  // closer to the truth. Voice lines are pre-rendered with Kokoro TTS
+  // (af_nicole — ASMR whisper) and routed through a Web Audio reverb graph
+  // for an epic, dramatic, surreal quality.
+  const ttsQueueRef = useRef<NonRepeatingQueue>(new NonRepeatingQueue(TTS_MESSAGES.length))
+  const ttsProcessorRef = useRef<TtsAudioProcessor | null>(null)
+  const activeTtsAudioRef = useRef<HTMLAudioElement | null>(null)
+  const ttsEnabledRef = useRef(ttsEnabled)
+  const ttsReverbRef = useRef(ttsReverb)
+  const ttsVolumeRef = useRef(ttsVolume)
+  const sfxEnabledRef = useRef(sfxEnabled)
+  const sfxVolumeRef = useRef(sfxVolume)
 
   const speakMotivational = useCallback(() => {
     if (!ttsEnabledRef.current) return
-    // Use pre-rendered Kokoro TTS audio files (high quality whispery voice)
-    const idx = Math.floor(Math.random() * TTS_MESSAGES.length)
+
+    // Lazy-init the Web Audio reverb graph on first speak
+    if (!ttsProcessorRef.current) {
+      const proc = new TtsAudioProcessor()
+      proc.init()
+      proc.setReverbAmount(ttsReverbRef.current)
+      proc.setVolume(ttsVolumeRef.current)
+      ttsProcessorRef.current = proc
+    }
+    ttsProcessorRef.current.resume()
+
+    // Non-repeating shuffle — never plays same line back-to-back
+    const idx = ttsQueueRef.current.next()
     const msg = TTS_MESSAGES[idx]
-    const audio = new Audio('/tts/tts_' + idx + '.ogg')
-    audio.volume = 1.0
+    const audio = new Audio(`/tts/tts_${idx}.ogg`)
+    audio.volume = ttsVolumeRef.current
+    activeTtsAudioRef.current = audio
+
+    // Route through reverb graph
+    ttsProcessorRef.current.connect(audio)
+
     audio.play().catch(() => {
       // Fallback to Web Speech API if audio play fails
       if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -129,24 +136,99 @@ export default function GameCanvas({
         const utterance = new SpeechSynthesisUtterance(msg)
         utterance.rate = 1.1
         utterance.pitch = 1.3
-        utterance.volume = 1.0
+        utterance.volume = ttsVolumeRef.current
         window.speechSynthesis.speak(utterance)
       }
     })
+
+    // Show subtitle immediately
     setCurrentSubtitle(msg)
-    setSubtitleTimer(3.5)
+
+    // Sync subtitle duration to actual audio duration + 2s padding
+    const applyDuration = () => {
+      if (audio.duration && isFinite(audio.duration) && audio.duration > 0) {
+        setSubtitleTimer(audio.duration + 2)
+      } else {
+        // Fallback: estimate from message length (~18 chars/sec)
+        const estimated = Math.max(3, msg.length / 18) + 2
+        setSubtitleTimer(estimated)
+      }
+    }
+    if (audio.duration && isFinite(audio.duration) && audio.duration > 0) {
+      applyDuration()
+    } else {
+      audio.addEventListener('loadedmetadata', applyDuration, { once: true })
+      setTimeout(() => {
+        if (!audio.duration || !isFinite(audio.duration)) {
+          const estimated = Math.max(3, msg.length / 18) + 2
+          setSubtitleTimer(estimated)
+        }
+      }, 600)
+    }
+
+    audio.addEventListener('ended', () => {
+      if (activeTtsAudioRef.current === audio) activeTtsAudioRef.current = null
+    })
   }, [])
 
   const checkTtsMilestone = useCallback((jumpCount: number) => {
     if (!ttsEnabledRef.current) return
-    const milestone = Math.floor(jumpCount / 20) * 20
+    // Trigger every 25 jumps (was 20 — increased spacing per user request)
+    const milestone = Math.floor(jumpCount / 25) * 25
     if (milestone > 0 && milestone > lastTtsMilestone.current) {
       lastTtsMilestone.current = milestone
       speakMotivational()
     }
   }, [speakMotivational])
 
+  // Reset TTS milestone tracking on new game (FIXES: "lost momentum = no speeches")
+  const resetTts = useCallback(() => {
+    lastTtsMilestone.current = 0
+    ttsQueueRef.current.reset()
+    setCurrentSubtitle('')
+    setSubtitleTimer(0)
+    if (activeTtsAudioRef.current) {
+      try { activeTtsAudioRef.current.pause() } catch {}
+      activeTtsAudioRef.current = null
+    }
+  }, [])
+
   useEffect(() => { ttsEnabledRef.current = ttsEnabled }, [ttsEnabled])
+  useEffect(() => { ttsReverbRef.current = ttsReverb }, [ttsReverb])
+  useEffect(() => { ttsVolumeRef.current = ttsVolume }, [ttsVolume])
+  useEffect(() => { sfxEnabledRef.current = sfxEnabled }, [sfxEnabled])
+  useEffect(() => { sfxVolumeRef.current = sfxVolume }, [sfxVolume])
+  useEffect(() => {
+    if (sfxRef.current) {
+      sfxRef.current.setEnabled(sfxEnabled)
+      sfxRef.current.setVolume(sfxVolume)
+    }
+  }, [sfxEnabled, sfxVolume])
+
+  useEffect(() => {
+    weatherRef.current.setWeather(weather)
+    if (typeof window !== 'undefined') localStorage.setItem('bouncy-weather', weather)
+  }, [weather])
+
+  // Play a creature SFX (lazy-inits the engine on first call)
+  const playSfx = useCallback((action: SfxAction) => {
+    if (!sfxEnabledRef.current) return
+    if (!sfxRef.current) {
+      const engine = new CreatureSfxEngine()
+      engine.init()
+      engine.setEnabled(sfxEnabledRef.current)
+      engine.setVolume(sfxVolumeRef.current)
+      sfxRef.current = engine
+    }
+    sfxRef.current.resume()
+    sfxRef.current.play(action)
+  }, [])
+  useEffect(() => {
+    if (ttsProcessorRef.current) {
+      ttsProcessorRef.current.setReverbAmount(ttsReverb)
+      ttsProcessorRef.current.setVolume(ttsVolume)
+    }
+  }, [ttsReverb, ttsVolume])
 
   // Keep the prop/state refs in sync so the animation loop's closure reads
   // fresh values without needing to re-create itself.
@@ -157,8 +239,14 @@ export default function GameCanvas({
   useEffect(() => { onBestChangeRef.current = onBestChange }, [onBestChange])
 
   useEffect(() => {
-    if (typeof window !== 'undefined') localStorage.setItem('bouncy-tts', String(ttsEnabled))
-  }, [ttsEnabled])
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('bouncy-tts', String(ttsEnabled))
+      localStorage.setItem('bouncy-tts-reverb', String(ttsReverb))
+      localStorage.setItem('bouncy-tts-volume', String(ttsVolume))
+      localStorage.setItem('bouncy-sfx', String(sfxEnabled))
+      localStorage.setItem('bouncy-sfx-volume', String(sfxVolume))
+    }
+  }, [ttsEnabled, ttsReverb, ttsVolume, sfxEnabled, sfxVolume])
 
   useEffect(() => {
     if (subtitleTimer <= 0) return
@@ -213,13 +301,53 @@ export default function GameCanvas({
       setSelectedCharacter(storedChar)
     }
     const storedGenre = localStorage.getItem('bouncy-genre') as MusicGenre
-    if (storedGenre === 'lofi' || storedGenre === 'mystic' || storedGenre === 'synthwave' || storedGenre === 'pop' || storedGenre === 'requiem') {
+    if (storedGenre === 'lofi' || storedGenre === 'mystic' || storedGenre === 'synthwave' || storedGenre === 'pop' || storedGenre === 'requiem' || storedGenre === 'aurora') {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedGenre(storedGenre)
     }
-    if (localStorage.getItem('bouncy-tts') === 'true') {
+    // Load TTS settings — voice ON by default unless explicitly disabled
+    const storedTts = localStorage.getItem('bouncy-tts')
+    if (storedTts === 'false') {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setTtsEnabled(true)
+      setTtsEnabled(false)
+    } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTtsEnabled(true)  // ON by default
+    }
+    const storedReverb = localStorage.getItem('bouncy-tts-reverb')
+    if (storedReverb !== null) {
+      const r = parseFloat(storedReverb)
+      if (!isNaN(r) && r >= 0 && r <= 1) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setTtsReverb(r)
+      }
+    }
+    const storedVol = localStorage.getItem('bouncy-tts-volume')
+    if (storedVol !== null) {
+      const v = parseFloat(storedVol)
+      if (!isNaN(v) && v >= 0 && v <= 1) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setTtsVolume(v)
+      }
+    }
+    // Load SFX settings — ON by default unless explicitly disabled
+    if (localStorage.getItem('bouncy-sfx') === 'false') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSfxEnabled(false)
+    }
+    const storedSfxVol = localStorage.getItem('bouncy-sfx-volume')
+    if (storedSfxVol !== null) {
+      const sv = parseFloat(storedSfxVol)
+      if (!isNaN(sv) && sv >= 0 && sv <= 1) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSfxVolume(sv)
+      }
+    }
+    // Load weather setting
+    const storedWeather = localStorage.getItem('bouncy-weather') as 'none' | 'snow' | 'rain' | null
+    if (storedWeather === 'none' || storedWeather === 'snow' || storedWeather === 'rain') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setWeather(storedWeather)
     }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
@@ -373,6 +501,7 @@ export default function GameCanvas({
         music,
         onGameOver: () => {
           music.onGameOver()
+          playSfx('gameover')
           setPhase('gameover')
           onPhaseChangeRef.current?.('gameover')
           const newBest = Math.max(bestRef.current, state.bestHeight)
@@ -382,6 +511,7 @@ export default function GameCanvas({
         },
         onJump: (kind) => {
           music.onJump(kind)
+          playSfx('jump')
           setCombo(state.combo)
           setMusicStep(state.musicStep)
           setActiveLayers([...music.getActiveLayers()])
@@ -390,25 +520,26 @@ export default function GameCanvas({
         },
         onJumpMulti: (count, kind) => {
           music.onJumpMulti(count, kind)
-          // Update combo/step to reflect the multi-progression
-          if (kind === 'progress') {
-            setCombo(state.combo)
-            setMusicStep(state.musicStep)
-          }
+          if (kind === 'progress') playSfx('jump')
+          setCombo(state.combo)
+          setMusicStep(state.musicStep)
           setActiveLayers([...music.getActiveLayers()])
           setCurrentChordName(getChordName(music.getCurrentChord()))
           checkTtsMilestone(music.getJumpCount())
         },
         onBoost: () => {
           music.onBoost()
+          playSfx('boost')
           if (navigator.vibrate) navigator.vibrate(40)
         },
         onBouncy: () => {
           music.onBouncy()
+          playSfx('bouncy')
           if (navigator.vibrate) navigator.vibrate(15)
         },
         onBreak: () => {
           music.onBreak()
+          playSfx('break')
           if (navigator.vibrate) navigator.vibrate(8)
         },
       }
@@ -475,11 +606,16 @@ export default function GameCanvas({
 
       ctx.restore()
 
-      // Vignette & flash (skip in performance mode)
+      // Vignette & flash (skip in performance mode) — uses cached gradients
       if (!state.perfMode) {
         drawVignette(ctx, w, h, 0.5 + state.vignettePulse * 0.3)
         drawFlash(ctx, w, h, state.flashAlpha, state.flashHue)
       }
+
+      // Weather (snow/rain) — sub-pixel, optimized, never syncs into patterns
+      weatherRef.current.setSize(w, h)
+      weatherRef.current.update(dt, state.time)
+      weatherRef.current.draw(ctx, w, h)
 
       // Side gradient masking (play area framing)
       drawSideFades(ctx, w, h, offsetX)
@@ -521,11 +657,11 @@ export default function GameCanvas({
     setHeight(0)
     setCombo(0)
     setMusicStep(0)
-    lastTtsMilestone.current = 0
-    if (typeof window !== 'undefined' && window.speechSynthesis) window.speechSynthesis.cancel()
+    // Reset TTS state so milestones start fresh (FIXES: lost momentum = no speeches)
+    resetTts()
     setActiveLayers(music.getActiveLayers())
     setCurrentChordName(getChordName(music.getCurrentChord()))
-  }, [started, onPhaseChange, selectedCharacter, selectedGenre])
+  }, [started, onPhaseChange, selectedCharacter, selectedGenre, resetTts])
 
   const togglePause = useCallback(() => {
     const state = stateRef.current
@@ -716,7 +852,7 @@ export default function GameCanvas({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 flex flex-col items-center justify-center p-3 overflow-y-auto"
+            className="absolute inset-0 flex flex-col items-center justify-center p-4 sm:p-6 overflow-y-auto"
             style={{
               zIndex: 20,
               background: 'linear-gradient(180deg, rgba(10,5,20,0.95) 0%, rgba(20,10,35,0.92) 50%, rgba(10,5,20,0.95) 100%)',
@@ -724,9 +860,9 @@ export default function GameCanvas({
             }}
           >
             {/* Title — centered, elegant */}
-            <div className="text-center mb-3">
+            <div className="text-center mb-4 mt-2">
               <h1
-                className="text-3xl font-black leading-tight text-outline-sm"
+                className="text-4xl sm:text-5xl font-black leading-tight text-outline-sm"
                 style={{
                   fontFamily: "'Baloo 2', 'Nunito', system-ui, sans-serif",
                   background: 'linear-gradient(135deg, #fff 0%, #fce4ec 40%, #f9a8d4 100%)',
@@ -737,7 +873,7 @@ export default function GameCanvas({
               >
                 Bouncy Melody
               </h1>
-              <div className="text-[9px] uppercase tracking-[0.2em] text-white/50 text-outline-sm mt-0.5">
+              <div className="text-[10px] uppercase tracking-[0.2em] text-white/50 text-outline-sm mt-1">
                 Seeking the NonExistent Ah-Rash
               </div>
             </div>
@@ -750,7 +886,7 @@ export default function GameCanvas({
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.96 }}
               onClick={startGame}
-              className="px-10 py-2 rounded-full font-black text-base text-white text-outline-sm mb-1"
+              className="px-12 py-3 rounded-full font-black text-lg text-white text-outline-sm mb-2"
               style={{
                 background: 'linear-gradient(135deg, #f472b6 0%, #ec4899 50%, #be185d 100%)',
                 boxShadow: '0 4px 20px rgba(236, 72, 153, 0.4), inset 0 1px 0 rgba(255,255,255,0.3)',
@@ -766,10 +902,10 @@ export default function GameCanvas({
               </div>
             )}
 
-            {/* Character grid — fills width, tight */}
-            <div className="w-full max-w-[300px] mb-2">
-              <div className="text-[8px] uppercase tracking-[0.15em] text-white/40 font-bold text-center mb-1 text-outline-sm">Character</div>
-              <div className="grid grid-cols-4 gap-1">
+            {/* Character grid — fills width */}
+            <div className="w-full max-w-[340px] mb-3">
+              <div className="text-[9px] uppercase tracking-[0.15em] text-white/40 font-bold text-center mb-1.5 text-outline-sm">Character</div>
+              <div className="grid grid-cols-4 gap-1.5">
                 {(Object.keys(CHARACTER_NAMES) as CharacterType[]).map((type) => {
                   const isSelected = selectedCharacter === type
                   const accentHue = type === 'pip' ? 340 : type === 'pixel' ? 165 : type === 'mochi' ? 25 : type === 'yuki' ? 205 : type === 'kuro' ? 180 : type === 'bongo' ? 30 : type === 'popcat' ? 35 : type === 'neon' ? 290 : type === 'blob3d' ? 280 : type === 'cat3d' ? 20 : type === 'spark' ? 180 : 280
@@ -777,7 +913,7 @@ export default function GameCanvas({
                     <button
                       key={type}
                       onClick={() => setSelectedCharacter(type)}
-                      className="relative rounded-lg p-1.5 transition-all"
+                      className="relative rounded-lg p-2 transition-all"
                       style={{
                         background: isSelected
                           ? `linear-gradient(135deg, hsl(${accentHue}, 70%, 45%), hsl(${accentHue}, 75%, 28%))`
@@ -790,7 +926,7 @@ export default function GameCanvas({
                     >
                       <CharacterPreview type={type} />
                       <div
-                        className="text-[8px] font-bold mt-0.5 text-outline-sm"
+                        className="text-[9px] font-bold mt-1 text-outline-sm"
                         style={{ color: isSelected ? `hsl(${accentHue}, 95%, 82%)` : 'rgba(255,255,255,0.6)' }}
                       >
                         {CHARACTER_NAMES[type]}
@@ -802,18 +938,18 @@ export default function GameCanvas({
             </div>
 
             {/* Genre + Voice — compact row */}
-            <div className="w-full max-w-[300px]">
-              <div className="text-[8px] uppercase tracking-[0.15em] text-white/40 font-bold text-center mb-1 text-outline-sm">Genre</div>
-              <div className="grid grid-cols-5 gap-0.5 mb-1.5">
+            <div className="w-full max-w-[340px]">
+              <div className="text-[9px] uppercase tracking-[0.15em] text-white/40 font-bold text-center mb-1.5 text-outline-sm">Genre</div>
+              <div className="grid grid-cols-6 gap-1 mb-2">
                 {(Object.keys(GENRE_CONFIGS) as MusicGenre[]).map((genre) => {
                   const isSelected = selectedGenre === genre
                   const config = GENRE_CONFIGS[genre]
-                  const genreHue = genre === 'lofi' ? 200 : genre === 'mystic' ? 280 : genre === 'synthwave' ? 320 : genre === 'pop' ? 350 : 210
+                  const genreHue = genre === 'lofi' ? 200 : genre === 'mystic' ? 280 : genre === 'synthwave' ? 320 : genre === 'pop' ? 350 : genre === 'requiem' ? 210 : 165
                   return (
                     <button
                       key={genre}
                       onClick={() => setSelectedGenre(genre)}
-                      className="rounded py-1 transition-all"
+                      className="rounded py-1.5 transition-all"
                       style={{
                         background: isSelected
                           ? `linear-gradient(135deg, hsl(${genreHue}, 70%, 45%), hsl(${genreHue}, 75%, 28%))`
@@ -823,7 +959,7 @@ export default function GameCanvas({
                           : '1px solid rgba(255,255,255,0.12)',
                       }}
                     >
-                      <span className="text-[8px] font-bold text-outline-sm" style={{ color: isSelected ? 'white' : 'rgba(255,255,255,0.6)' }}>
+                      <span className="text-[9px] font-bold text-outline-sm" style={{ color: isSelected ? 'white' : 'rgba(255,255,255,0.6)' }}>
                         {config.name}
                       </span>
                     </button>
@@ -831,8 +967,8 @@ export default function GameCanvas({
                 })}
               </div>
 
-              {/* Voice toggle — minimal */}
-              <div className="flex justify-center">
+              {/* Voice toggle + Settings gear */}
+              <div className="flex justify-center gap-1">
                 <button
                   onClick={() => {
                     const next = !ttsEnabled
@@ -858,7 +994,139 @@ export default function GameCanvas({
                     {ttsEnabled ? '🔊 Voice' : '🔇 Voice'}
                   </span>
                 </button>
+                <button
+                  onClick={() => setShowSettings(s => !s)}
+                  className="rounded px-2 py-0.5 transition-all"
+                  style={{
+                    background: showSettings
+                      ? 'linear-gradient(135deg, hsl(280, 60%, 35%), hsl(280, 65%, 25%))'
+                      : 'rgba(15, 10, 25, 0.8)',
+                    border: showSettings
+                      ? '1.5px solid hsl(280, 80%, 55%)'
+                      : '1px solid rgba(255,255,255,0.12)',
+                  }}
+                >
+                  <span className="text-[8px] font-bold text-outline-sm" style={{ color: showSettings ? 'white' : 'rgba(255,255,255,0.6)' }}>
+                    ⚙ SFX
+                  </span>
+                </button>
               </div>
+
+              {/* Settings panel — collapsible */}
+              <AnimatePresence>
+                {showSettings && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mt-1.5 rounded p-2 space-y-2"
+                    style={{
+                      background: 'rgba(15, 10, 25, 0.92)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                    }}
+                  >
+                    {/* Voice Reverb */}
+                    <div>
+                      <div className="flex justify-between items-center mb-0.5">
+                        <span className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm">Voice Reverb</span>
+                        <span className="text-[8px] text-white/80 font-mono text-outline-sm">{Math.round(ttsReverb * 100)}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        value={ttsReverb}
+                        onChange={(e) => setTtsReverb(parseFloat(e.target.value))}
+                        className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                        style={{ background: `linear-gradient(to right, hsl(280, 70%, 50%) ${ttsReverb * 100}%, rgba(255,255,255,0.1) ${ttsReverb * 100}%)` }}
+                      />
+                    </div>
+                    {/* Voice Volume */}
+                    <div>
+                      <div className="flex justify-between items-center mb-0.5">
+                        <span className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm">Voice Volume</span>
+                        <span className="text-[8px] text-white/80 font-mono text-outline-sm">{Math.round(ttsVolume * 100)}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        value={ttsVolume}
+                        onChange={(e) => setTtsVolume(parseFloat(e.target.value))}
+                        className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                        style={{ background: `linear-gradient(to right, hsl(140, 70%, 50%) ${ttsVolume * 100}%, rgba(255,255,255,0.1) ${ttsVolume * 100}%)` }}
+                      />
+                    </div>
+                    {/* Divider */}
+                    <div className="border-t border-white/10 my-1"></div>
+                    {/* SFX toggle */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm">Creature SFX</span>
+                      <button
+                        onClick={() => setSfxEnabled(s => !s)}
+                        className="rounded px-1.5 py-0.5 text-[8px] font-bold text-outline-sm transition-all"
+                        style={{
+                          background: sfxEnabled
+                            ? 'linear-gradient(135deg, hsl(280, 60%, 35%), hsl(280, 65%, 25%))'
+                            : 'rgba(15, 10, 25, 0.8)',
+                          border: sfxEnabled
+                            ? '1px solid hsl(280, 80%, 55%)'
+                            : '1px solid rgba(255,255,255,0.12)',
+                          color: sfxEnabled ? 'white' : 'rgba(255,255,255,0.5)',
+                        }}
+                      >
+                        {sfxEnabled ? 'ON' : 'OFF'}
+                      </button>
+                    </div>
+                    {/* SFX Volume */}
+                    <div>
+                      <div className="flex justify-between items-center mb-0.5">
+                        <span className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm">SFX Volume</span>
+                        <span className="text-[8px] text-white/80 font-mono text-outline-sm">{Math.round(sfxVolume * 100)}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        value={sfxVolume}
+                        onChange={(e) => setSfxVolume(parseFloat(e.target.value))}
+                        className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                        style={{ background: `linear-gradient(to right, hsl(280, 70%, 50%) ${sfxVolume * 100}%, rgba(255,255,255,0.1) ${sfxVolume * 100}%)` }}
+                      />
+                    </div>
+                    {/* Divider */}
+                    <div className="border-t border-white/10 my-1"></div>
+                    {/* Weather */}
+                    <div>
+                      <div className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm mb-0.5">Weather</div>
+                      <div className="grid grid-cols-3 gap-0.5">
+                        {(['none', 'snow', 'rain'] as const).map((mode) => (
+                          <button
+                            key={mode}
+                            onClick={() => setWeather(mode)}
+                            className="rounded py-0.5 transition-all"
+                            style={{
+                              background: weather === mode
+                                ? 'linear-gradient(135deg, hsl(200, 60%, 35%), hsl(200, 65%, 25%))'
+                                : 'rgba(15, 10, 25, 0.8)',
+                              border: weather === mode
+                                ? '1px solid hsl(200, 80%, 55%)'
+                                : '1px solid rgba(255,255,255,0.12)',
+                            }}
+                          >
+                            <span className="text-[7px] font-bold text-outline-sm" style={{ color: weather === mode ? 'white' : 'rgba(255,255,255,0.5)' }}>
+                              {mode === 'none' ? 'Clear' : mode === 'snow' ? 'Snow' : 'Rain'}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Footer */}

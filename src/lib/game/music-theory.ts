@@ -248,8 +248,38 @@ const REQUIEM_PROG_3: ChordDef[] = [
   { root: 60, type: 'dom9',   bassNote: 36, scale: 'mixolydian' }, // C9 (V)
 ]
 
+// ====================================================================
+// GENRE 6: AURORA — Felt piano + strings, emotional and luminous
+// Replaces Requiem with a richer, more cinematic sound.
+// Think: Jon Hopkins, Bon Iver, Nils Frahm "All Melody", Hania Rani.
+// Uses arpeggio melody mode (ping-pong 2 octaves) for a flowing,
+// rippling quality — like northern lights shimmering.
+// ====================================================================
+
+// F#m - D - A - E (vi - IV - I - V in A) — soaring, hopeful melancholy
+const AURORA_PROG_1: ChordDef[] = [
+  { root: 66, type: 'min9',   bassNote: 42, scale: 'aeolian' },     // F#m9 (vi) — yearning
+  { root: 62, type: 'maj9',   bassNote: 38, scale: 'lydian' },      // Dmaj9 (IV) — warmth
+  { root: 69, type: 'maj9',   bassNote: 45, scale: 'major' },       // Amaj9 (I) — home, bright
+  { root: 64, type: 'dom9',   bassNote: 40, scale: 'mixolydian' },  // E9 (V) — gentle tension
+]
+// C#m - A - E - B (vi - IV - I - V in E) — same pattern, higher key
+const AURORA_PROG_2: ChordDef[] = [
+  { root: 73, type: 'min9',   bassNote: 49, scale: 'aeolian' },     // C#m9 (vi)
+  { root: 69, type: 'maj9',   bassNote: 45, scale: 'lydian' },      // Amaj9 (IV)
+  { root: 76, type: 'maj9',   bassNote: 52, scale: 'major' },       // Emaj9 (I)
+  { root: 71, type: 'dom9',   bassNote: 47, scale: 'mixolydian' },  // B9 (V)
+]
+// G#m - E - B - F# (vi - IV - I - V in B) — highest, brightest
+const AURORA_PROG_3: ChordDef[] = [
+  { root: 68, type: 'min9',   bassNote: 44, scale: 'aeolian' },     // G#m9 (vi)
+  { root: 64, type: 'maj9',   bassNote: 40, scale: 'lydian' },      // Emaj9 (IV)
+  { root: 71, type: 'maj9',   bassNote: 47, scale: 'major' },       // Bmaj9 (I)
+  { root: 66, type: 'dom9',   bassNote: 42, scale: 'mixolydian' },  // F#9 (V)
+]
+
 // ---- Genre configurations ----
-export type MusicGenre = 'lofi' | 'mystic' | 'synthwave' | 'pop' | 'requiem'
+export type MusicGenre = 'lofi' | 'mystic' | 'synthwave' | 'pop' | 'requiem' | 'aurora'
 
 export interface GenreConfig {
   name: string
@@ -258,6 +288,8 @@ export interface GenreConfig {
   // Optional: pre-composed melodies per progression (MIDI notes, -1 = rest)
   // When present, the engine plays these instead of generating random notes
   precomposedMelodies?: number[][][]
+  // Melody mode: 'voiceLed' (default v1 engine) or 'arpeggio' (ping-pong 2-3 octaves)
+  melodyMode?: 'voiceLed' | 'arpeggio'
   // Synthesis parameters
   masterFilterFreq: number
   reverbAmount: number
@@ -278,8 +310,8 @@ export const GENRE_CONFIGS: Record<MusicGenre, GenreConfig> = {
     masterFilterFreq: 5200,
     reverbAmount: 0.45,
     delayAmount: 0.35,
-    padVolume: 0.05,
-    bassVolume: 0.32,
+    padVolume: 0.10,  // bumped — chord pad more audible on phone speakers
+    bassVolume: 0.34,
     melodyVolume: 0.20,
     chordStabVolume: 0.08,
     melodyOscType: 'sine',
@@ -292,8 +324,8 @@ export const GENRE_CONFIGS: Record<MusicGenre, GenreConfig> = {
     masterFilterFreq: 3800,     // darker
     reverbAmount: 0.65,         // more reverb — spacious
     delayAmount: 0.5,           // more delay — echoes
-    padVolume: 0.07,            // louder pad — atmospheric
-    bassVolume: 0.28,
+    padVolume: 0.12,            // louder pad — atmospheric (bumped)
+    bassVolume: 0.30,
     melodyVolume: 0.17,
     chordStabVolume: 0.06,
     melodyOscType: 'triangle',  // softer, more mysterious
@@ -306,8 +338,8 @@ export const GENRE_CONFIGS: Record<MusicGenre, GenreConfig> = {
     masterFilterFreq: 8000,     // bright — lets the sawtooth shine
     reverbAmount: 0.25,         // tighter, less wash
     delayAmount: 0.28,          // dotted-eighth delay for that 80s feel
-    padVolume: 0.045,           // lush pad
-    bassVolume: 0.38,           // punchy driving bass
+    padVolume: 0.08,           // lush pad (bumped)
+    bassVolume: 0.40,           // punchy driving bass
     melodyVolume: 0.20,
     chordStabVolume: 0.10,
     melodyOscType: 'sawtooth',  // bright synth lead
@@ -348,8 +380,8 @@ export const GENRE_CONFIGS: Record<MusicGenre, GenreConfig> = {
     masterFilterFreq: 7500,
     reverbAmount: 0.28,
     delayAmount: 0.15,
-    padVolume: 0.03,
-    bassVolume: 0.40,
+    padVolume: 0.07,  // bumped
+    bassVolume: 0.42,
     melodyVolume: 0.24,
     chordStabVolume: 0.13,
     melodyOscType: 'triangle',
@@ -391,12 +423,28 @@ export const GENRE_CONFIGS: Record<MusicGenre, GenreConfig> = {
     masterFilterFreq: 4000,     // warm but clear — lets the pure sine melody through
     reverbAmount: 0.65,         // lots of reverb — creates space and emotion
     delayAmount: 0.30,          // gentle echo
-    padVolume: 0.06,            // soft pad — atmospheric warmth
-    bassVolume: 0.32,           // gentle bass — not crushing, supportive
+    padVolume: 0.12,            // soft pad — atmospheric warmth (bumped)
+    bassVolume: 0.34,           // gentle bass — not crushing, supportive
     melodyVolume: 0.22,         // clear melody — the emotional voice
     chordStabVolume: 0.08,      // very soft chord stabs
     melodyOscType: 'sine',      // pure sine — piano-like, clean, emotional
     bassOscType: 'sine',        // soft sine bass — warm and gentle
+  },
+  aurora: {
+    name: 'Aurora',
+    description: 'Felt piano + strings. Luminous, cinematic, flowing arpeggios.',
+    progressions: [AURORA_PROG_1, AURORA_PROG_2, AURORA_PROG_3],
+    // Arpeggio melody mode — ping-pong 2 octaves through chord tones
+    melodyMode: 'arpeggio',
+    masterFilterFreq: 5500,     // warm but clear — lets the arpeggio shimmer
+    reverbAmount: 0.55,         // spacious — cathedral-like
+    delayAmount: 0.35,          // gentle echo for the rippling feel
+    padVolume: 0.14,            // lush string pad — the emotional bed
+    bassVolume: 0.32,           // supportive bass
+    melodyVolume: 0.20,         // arpeggio melody
+    chordStabVolume: 0.06,      // very soft
+    melodyOscType: 'triangle',  // triangle — felt-piano-ish, warm
+    bassOscType: 'sine',
   },
 }
 

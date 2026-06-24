@@ -365,11 +365,16 @@ export class MusicEngine {
     // instead of random bouncing.
     this.currentChord = this.progressionEngine.advanceChord()
     this.setPadChord(this.currentChord)
+    // Reset arpeggio step on chord change so the pattern starts fresh
+    this.arpStep = 0
+    this.arpDirection = 1
   }
 
   // ---- Melody: voice-led with chord tones + scale passing notes ----
 
   private melodyStep = 0  // tracks position in pre-composed melodies
+  private arpStep = 0     // tracks position in arpeggio pattern
+  private arpDirection = 1  // 1 = ascending, -1 = descending (ping-pong)
 
   private playVoiceLedMelody(time?: number) {
     const chord = this.currentChord
@@ -377,7 +382,7 @@ export class MusicEngine {
     const genre = this.progressionEngine.getGenre()
     const config = GENRE_CONFIGS[genre]
 
-    // If the genre has pre-composed melodies, use those (doom)
+    // If the genre has pre-composed melodies, use those (doom/requiem/pop)
     if (config.precomposedMelodies) {
       const progIdx = this.progressionEngine.getProgressionIndex()
       const melodies = config.precomposedMelodies[progIdx % config.precomposedMelodies.length]
@@ -392,6 +397,28 @@ export class MusicEngine {
       this.lastMelodyNote = note
       this.playMelodyVoice(note, 1.0, t)
       return
+    }
+
+    // Arpeggio melody mode — ping-pong 2-3 octaves through chord tones
+    // Creates a flowing, rippling quality (used by Aurora genre)
+    if (config.melodyMode === 'arpeggio') {
+      const chordTones = getChordTonesInRange(chord, MELODY_MIN, MELODY_MAX)
+      if (chordTones.length > 0) {
+        // Build a 2-octave arpeggio from chord tones
+        const note = chordTones[this.arpStep % chordTones.length]
+        this.arpStep += this.arpDirection
+
+        // Ping-pong: reverse direction at the ends of the pattern
+        if (this.arpStep >= chordTones.length - 1) {
+          this.arpDirection = -1
+        } else if (this.arpStep <= 0) {
+          this.arpDirection = 1
+        }
+
+        this.lastMelodyNote = note
+        this.playMelodyVoice(note, 0.9, t)
+        return
+      }
     }
 
     // Use v2 melody engine if enabled (style-aware, less random)
