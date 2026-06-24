@@ -12,20 +12,23 @@ import { NonRepeatingQueue } from './tts-engine'
 export type SfxAction = 'jump' | 'land' | 'boost' | 'break' | 'bouncy' | 'gameover'
 
 // Real sound samples per action. Multiple variants per action for variety.
-// These are loaded from /public/sfx/*.ogg (downloaded from open-source repos)
+// These are loaded from /public/sfx/*.ogg
+// - voice_*.ogg: real human character voices (CC0 from Freesound) — "wee", "yay", "aww"
+// - jump/bounce/pop: real game SFX (from open-source game repos)
+// - cat_purr: real cat purr
 const SAMPLE_MAP: Record<SfxAction, string[]> = {
-  // Jump sounds — cute character jumps from real games
-  jump: ['jump_1.ogg', 'jump_2.ogg', 'jump_3.ogg'],
-  // Land — use pop sounds (soft landing impact)
+  // Jump — cute character voices (happy "yay/giggle") + game jump sounds
+  jump: ['voice_giggle.ogg', 'voice_yay_3.ogg', 'voice_yeah.ogg', 'jump_2.ogg', 'voice_yay_1.ogg'],
+  // Land — pop sounds (soft landing impact)
   land: ['pop_1.ogg', 'pop_2.ogg', 'pop_3.ogg'],
-  // Boost — higher-pitched jumps + bounce
-  boost: ['jump_3.ogg', 'bounce_1.ogg', 'jump_1.ogg'],
-  // Break — pop sounds (breaking/shattering)
-  break: ['pop_2.ogg', 'pop_3.ogg', 'pop_1.ogg'],
-  // Bouncy — real bounce sounds
-  bouncy: ['bounce_1.ogg', 'bounce_2.ogg', 'jump_2.ogg'],
-  // Game over — descending cat purr (sad creature)
-  gameover: ['cat_purr.ogg'],
+  // Boost — excited "weee/wahoo/woohoo" voices (jumping high!)
+  boost: ['voice_wee_1.ogg', 'voice_wee_2.ogg', 'voice_wahoo.ogg', 'voice_woohoo.ogg', 'jump_3.ogg'],
+  // Break — sad "aww" voices (falling down / combo lost)
+  break: ['voice_aww_1.ogg', 'voice_aww_2.ogg', 'pop_2.ogg'],
+  // Bouncy — real bounce sounds + happy voice
+  bouncy: ['bounce_1.ogg', 'bounce_2.ogg', 'voice_yay_2.ogg', 'jump_1.ogg'],
+  // Game over — sad "aww" + cat purr (melancholy)
+  gameover: ['voice_aww_1.ogg', 'cat_purr.ogg', 'voice_aww_2.ogg'],
 }
 
 // Procedural fallback presets (used while samples load or if loading fails)

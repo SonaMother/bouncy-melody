@@ -41,7 +41,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v2.3.0'  // real creature SFX, angelic pad, layered delay, piano lib
+  const GAME_VERSION = 'v2.4.0'  // real character voices, Hammond organ, Leslie pad, combo decouple
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -179,8 +179,11 @@ export default function GameCanvas({
 
   const checkTtsMilestone = useCallback((jumpCount: number) => {
     if (!ttsEnabledRef.current) return
-    // Trigger every 15 jumps (was 25 — user reported massive delay between lines)
-    const milestone = Math.floor(jumpCount / 15) * 15
+    // Trigger every 30 jumps (was 15 — user wants 2x more climbing between lines)
+    // NOTE: This is based on TOTAL climbing progress (jumpCount), NOT combo.
+    // Combo can break, fall to zero, whatever — speeches still trigger purely
+    // from how high you've climbed. No combo dependency.
+    const milestone = Math.floor(jumpCount / 30) * 30
     if (milestone > 0 && milestone > lastTtsMilestone.current) {
       lastTtsMilestone.current = milestone
       speakMotivational()
@@ -192,7 +195,7 @@ export default function GameCanvas({
     setTimeout(() => {
       if (!ttsEnabledRef.current || !musicRef.current) return
       const updatedCount = musicRef.current.getJumpCount()
-      const updatedMilestone = Math.floor(updatedCount / 15) * 15
+      const updatedMilestone = Math.floor(updatedCount / 30) * 30
       if (updatedMilestone > 0 && updatedMilestone > lastTtsMilestone.current) {
         lastTtsMilestone.current = updatedMilestone
         speakMotivational()

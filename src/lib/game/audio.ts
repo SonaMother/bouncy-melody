@@ -56,11 +56,14 @@ export class MusicEngine {
   public level = 0
 
   // ---- Continuous pad voices (always playing) ----
-  private padVoices: { osc: OscillatorNode; gain: GainNode }[] = []
+  // Hammond organ effect: each pad voice has tremolo (amplitude LFO) and
+  // vibrato (pitch LFO) to simulate a Leslie rotary speaker. This makes the
+  // pad less static and more like a living, breathing organ.
+  private padVoices: { osc: OscillatorNode; gain: GainNode; tremoloLfo: OscillatorNode; tremoloGain: GainNode; vibratoLfo: OscillatorNode; vibratoGain: GainNode }[] = []
   private padTargetFreqs: number[] = []
   private padCurrentChord: ChordDef
   // ---- Angelic high pad (chord tones in higher register — the "pad" layer) ----
-  private angelVoices: { osc: OscillatorNode; gain: GainNode }[] = []
+  private angelVoices: { osc: OscillatorNode; gain: GainNode; tremoloLfo: OscillatorNode; tremoloGain: GainNode; vibratoLfo: OscillatorNode; vibratoGain: GainNode }[] = []
   private angelTargetFreqs: number[] = []
 
   // ---- Music state ----
@@ -232,63 +235,102 @@ export class MusicEngine {
     this.setPadChord(this.currentChord)
   }
 
-  // ---- Continuous bass pad + angelic high pad ----
+  // ---- Continuous bass pad + angelic high pad (with Hammond Leslie effect) ----
 
   private startPad() {
     if (!this.ctx || !this.masterGain || !this.reverbBus) return
 
     // BASS PAD: root, fifth, octave in low register (warm harmonic bed)
     const bassIntervals = [0, 7, 12]
-    for (const interval of bassIntervals) {
-      const osc = this.ctx.createOscillator()
-      const gain = this.ctx.createGain()
-      const filter = this.ctx.createBiquadFilter()
-
-      osc.type = 'sine'
-      osc.frequency.value = midiToFreq(this.currentChord.bassNote + interval)
-
-      filter.type = 'lowpass'
-      filter.frequency.value = 1800
-      filter.Q.value = 0.7
-
-      gain.gain.value = 0
-
-      osc.connect(filter)
-      filter.connect(gain)
-      gain.connect(this.masterGain)
-      gain.connect(this.reverbBus)
-      osc.start()
-      this.padVoices.push({ osc, gain })
-      this.padTargetFreqs.push(osc.frequency.value)
+    for (let i = 0; i < bassIntervals.length; i++) {
+      const interval = bassIntervals[i]
+      const voice = this.createPadVoice(
+        this.currentChord.bassNote + interval,
+        'sine', 1800, 0.7,
+        i  // voice index for LFO phase offset
+      )
+      this.padVoices.push(voice)
+      this.padTargetFreqs.push(voice.osc.frequency.value)
     }
 
     // ANGELIC HIGH PAD: chord tones (root, third, fifth) in higher register
-    // This is the "angelic pad on top of bass" the user requested.
     // Plays 2 octaves above the chord root for a shimmering, heavenly layer.
-    const chordTones = CHORDS[this.currentChord.type]  // e.g. [0, 4, 7] for major
-    for (const tone of chordTones) {
-      const osc = this.ctx.createOscillator()
-      const gain = this.ctx.createGain()
-      const filter = this.ctx.createBiquadFilter()
-
-      osc.type = 'triangle'  // softer, warmer for pad
-      // root + chord tone + 2 octaves up = angelic register
-      osc.frequency.value = midiToFreq(this.currentChord.root + tone + 24)
-
-      filter.type = 'lowpass'
-      filter.frequency.value = 3000  // bright enough to shimmer
-      filter.Q.value = 0.5
-
-      gain.gain.value = 0
-
-      osc.connect(filter)
-      filter.connect(gain)
-      gain.connect(this.masterGain)
-      gain.connect(this.reverbBus)  // heavy reverb on angel pad = heavenly
-      osc.start()
-      this.angelVoices.push({ osc, gain })
-      this.angelTargetFreqs.push(osc.frequency.value)
+    const chordTones = CHORDS[this.currentChord.type]
+    for (let i = 0; i < chordTones.length; i++) {
+      const tone = chordTones[i]
+      const voice = this.createPadVoice(
+        this.currentChord.root + tone + 24,
+        'triangle', 3000, 0.5,
+        i + 10  // offset phase so angel voices don't sync with bass voices
+      )
+      this.angelVoices.push(voice)
+      this.angelTargetFreqs.push(voice.osc.frequency.value)
     }
+  }
+
+  /**
+   * Create a pad voice with Hammond Leslie effect:
+   * - Tremolo LFO (amplitude modulation) — simulates rotary speaker swirl
+   * - Vibrato LFO (pitch modulation) — simulates Doppler effect of rotating speaker
+   * Each voice gets a unique LFO phase so they don't sync into ugly patterns.
+   */
+  private createPadVoice(
+    midiNote: number,
+    oscType: OscillatorType,
+    filterFreq: number,
+    filterQ: number,
+    phaseOffset: number,
+  ): { osc: OscillatorNode; gain: GainNode; tremoloLfo: OscillatorNode; tremoloGain: GainNode; vibratoLfo: OscillatorNode; vibratoGain: GainNode } {
+    const ctx = this.ctx!
+
+    const osc = ctx.createOscillator()
+    osc.type = oscType
+    osc.frequency.value = midiToFreq(midiNote)
+
+    const filter = ctx.createBiquadFilter()
+    filter.type = 'lowpass'
+    filter.frequency.value = filterFreq
+    filter.Q.value = filterQ
+
+    const gain = ctx.createGain()
+    gain.gain.value = 0
+
+    osc.connect(filter)
+    filter.connect(gain)
+    gain.connect(this.masterGain!)
+    gain.connect(this.reverbBus!)
+    osc.start()
+
+    // Tremolo LFO (amplitude modulation) — Leslie rotary speaker effect
+    // Speed: ~5-7 Hz (slow choral rotation). Depth: subtle (0.15).
+    const tremoloLfo = ctx.createOscillator()
+    tremoloLfo.type = 'sine'
+    tremoloLfo.frequency.value = 5.0 + (phaseOffset % 3) * 0.5  // 5-6 Hz, varies per voice
+    const tremoloGain = ctx.createGain()
+    tremoloGain.gain.value = 0.15  // 15% amplitude modulation — subtle swirl
+    // Offset phase so voices don't sync
+    const tremoloPhase = ctx.createDelay(0.5)
+    tremoloPhase.delayTime.value = (phaseOffset * 0.07) % 0.5
+    tremoloLfo.connect(tremoloPhase)
+    tremoloPhase.connect(tremoloGain)
+    tremoloGain.connect(gain.gain)  // modulate the gain
+    tremoloLfo.start()
+
+    // Vibrato LFO (pitch modulation) — Doppler effect of rotating speaker
+    // Slower than tremolo, very subtle pitch wobble
+    const vibratoLfo = ctx.createOscillator()
+    vibratoLfo.type = 'sine'
+    vibratoLfo.frequency.value = 4.5 + (phaseOffset % 2) * 0.4  // slightly different from tremolo
+    const vibratoGain = ctx.createGain()
+    vibratoGain.gain.value = 3  // 3 cents — very subtle pitch wobble
+    const vibratoPhase = ctx.createDelay(0.5)
+    vibratoPhase.delayTime.value = (phaseOffset * 0.11) % 0.5
+    vibratoLfo.connect(vibratoPhase)
+    vibratoPhase.connect(vibratoGain)
+    vibratoGain.connect(osc.frequency)  // modulate the pitch
+    vibratoLfo.start()
+
+    return { osc, gain, tremoloLfo, tremoloGain, vibratoLfo, vibratoGain }
   }
 
   private setPadVolume(v: number) {
@@ -835,8 +877,25 @@ export class MusicEngine {
     for (let i = 0; i < notes.length; i++) {
       this.scheduleRhodesNote(notes[i], t + i * 0.07, 0.5, VOL.special * 0.5, false)
     }
-    // Reset state
-    this.resetState()
+    // SOFT reset: reset musical state but PRESERVE jumpCount.
+    // (FIXES: speeches disappearing on dip — jumpCount is total climb progress,
+    //  not combo. Dip should reset music, not erase climbing history.)
+    this.softReset()
+  }
+
+  /** Soft reset: reset musical/progression state but preserve jumpCount. */
+  private softReset() {
+    this.progressionEngine.reset()
+    this.melodyEngineV2.reset()
+    this.melodyStep = 0
+    this.currentChord = this.progressionEngine.getCurrentChord()
+    this.padCurrentChord = this.currentChord
+    this.lastMelodyNote = 72
+    this.lastBassNote = 36
+    this.recentMelodyNotes = []
+    this.recentBassNotes = []
+    this.melodyContour = 0
+    this.setPadChord(this.currentChord)
   }
 
   // ---- Game over: slow descending chord sequence ----
