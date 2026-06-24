@@ -95,14 +95,23 @@ export default function GameCanvas({
   ]
 
   const speakMotivational = useCallback(() => {
-    if (!ttsEnabledRef.current || typeof window === 'undefined' || !window.speechSynthesis) return
-    window.speechSynthesis.cancel()
-    const msg = TTS_MESSAGES[Math.floor(Math.random() * TTS_MESSAGES.length)]
-    const utterance = new SpeechSynthesisUtterance(msg)
-    utterance.rate = 1.1
-    utterance.pitch = 1.3
-    utterance.volume = 1.0
-    window.speechSynthesis.speak(utterance)
+    if (!ttsEnabledRef.current) return
+    // Use pre-rendered Kokoro TTS audio files (high quality whispery voice)
+    const idx = Math.floor(Math.random() * TTS_MESSAGES.length)
+    const msg = TTS_MESSAGES[idx]
+    const audio = new Audio('/tts/tts_' + idx + '.wav')
+    audio.volume = 1.0
+    audio.play().catch(() => {
+      // Fallback to Web Speech API if audio play fails
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel()
+        const utterance = new SpeechSynthesisUtterance(msg)
+        utterance.rate = 1.1
+        utterance.pitch = 1.3
+        utterance.volume = 1.0
+        window.speechSynthesis.speak(utterance)
+      }
+    })
     setCurrentSubtitle(msg)
     setSubtitleTimer(3.5)
   }, [])
