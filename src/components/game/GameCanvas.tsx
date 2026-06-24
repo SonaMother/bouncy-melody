@@ -672,16 +672,11 @@ export default function GameCanvas({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 flex flex-col items-center justify-start p-3 pt-6 overflow-y-auto"
-            style={{ zIndex: 20 }}
+            className="absolute inset-0 flex flex-col items-center p-2 pt-3 overflow-y-auto"
+            style={{ zIndex: 20, background: 'rgba(10, 5, 20, 0.92)' }}
           >
-            {/* Compact title */}
-            <motion.div
-              initial={{ y: -10, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.05 }}
-              className="text-center mb-2"
-            >
+            {/* Title */}
+            <div className="text-center mb-1">
               <h1
                 className="text-2xl font-black leading-none text-outline-sm"
                 style={{
@@ -694,43 +689,39 @@ export default function GameCanvas({
               >
                 Bouncy Melody
               </h1>
-              <div className="text-[8px] uppercase tracking-[0.2em] text-white/60 text-outline-sm mt-0.5">
+              <div className="text-[9px] uppercase tracking-[0.15em] text-white/60 text-outline-sm">
                 Seeking the NonExistent Arash
               </div>
-            </motion.div>
+            </div>
 
-            {/* Play button */}
-            <motion.button
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.1, type: 'spring' }}
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={startGame}
-              className="px-8 py-2 rounded-full font-black text-lg text-white shadow-2xl mb-2 text-outline-sm"
-              style={{
-                background: 'linear-gradient(135deg, #f472b6 0%, #ec4899 50%, #be185d 100%)',
-                boxShadow: '0 4px 20px rgba(236, 72, 153, 0.5)',
-                border: '2px solid rgba(255,255,255,0.2)',
-              }}
-            >
-              Play
-            </motion.button>
+            {/* Play + Best in a row */}
+            <div className="flex items-center gap-3 mb-1">
+              <motion.button
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.1, type: 'spring' }}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={startGame}
+                className="px-8 py-1.5 rounded-full font-black text-base text-white text-outline-sm"
+                style={{
+                  background: 'linear-gradient(135deg, #f472b6 0%, #ec4899 50%, #be185d 100%)',
+                  boxShadow: '0 4px 16px rgba(236, 72, 153, 0.4)',
+                  border: '2px solid rgba(255,255,255,0.2)',
+                }}
+              >
+                Play
+              </motion.button>
+              {best > 0 && (
+                <div className="text-white/80 text-[10px] text-outline-sm">
+                  Best: <span className="font-bold text-yellow-200">{best}m</span>
+                </div>
+              )}
+            </div>
 
-            {best > 0 && (
-              <div className="text-white/80 text-[10px] mb-2 text-outline-sm">
-                Best: <span className="font-bold text-yellow-200">{best}m</span>
-              </div>
-            )}
-
-            {/* Character selection */}
-            <motion.div
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="w-full max-w-[260px]"
-            >
-              <div className="text-[8px] uppercase tracking-[0.15em] text-white/60 font-bold text-center mb-1 text-outline-sm">Character</div>
+            {/* Character grid — fills width */}
+            <div className="w-full max-w-[320px] mb-1">
+              <div className="text-[9px] uppercase tracking-[0.1em] text-white/60 font-bold text-center mb-0.5 text-outline-sm">Character</div>
               <div className="grid grid-cols-4 gap-1">
                 {(Object.keys(CHARACTER_NAMES) as CharacterType[]).map((type) => {
                   const isSelected = selectedCharacter === type
@@ -739,11 +730,11 @@ export default function GameCanvas({
                     <button
                       key={type}
                       onClick={() => setSelectedCharacter(type)}
-                      className="relative rounded-lg p-1 transition-all"
+                      className="relative rounded-lg p-1.5 transition-all"
                       style={{
                         background: isSelected
                           ? `linear-gradient(135deg, hsl(${accentHue}, 70%, 45%), hsl(${accentHue}, 75%, 30%))`
-                          : 'rgba(15, 10, 25, 0.9)',
+                          : 'rgba(20, 15, 35, 0.9)',
                         border: isSelected
                           ? `2px solid hsl(${accentHue}, 90%, 70%)`
                           : '1.5px solid rgba(255,255,255,0.2)',
@@ -751,8 +742,8 @@ export default function GameCanvas({
                     >
                       <CharacterPreview type={type} />
                       <div
-                        className="text-[8px] font-bold mt-0.5 text-outline-sm"
-                        style={{ color: isSelected ? `hsl(${accentHue}, 95%, 85%)` : 'rgba(255,255,255,0.7)' }}
+                        className="text-[9px] font-bold mt-0.5 text-outline-sm"
+                        style={{ color: isSelected ? `hsl(${accentHue}, 95%, 85%)` : 'rgba(255,255,255,0.75)' }}
                       >
                         {CHARACTER_NAMES[type]}
                       </div>
@@ -760,17 +751,12 @@ export default function GameCanvas({
                   )
                 })}
               </div>
-            </motion.div>
+            </div>
 
-            {/* Genre + TTS */}
-            <motion.div
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="w-full max-w-[260px] mt-2"
-            >
-              <div className="text-[8px] uppercase tracking-[0.15em] text-white/60 font-bold text-center mb-1 text-outline-sm">Genre</div>
-              <div className="grid grid-cols-5 gap-0.5">
+            {/* Genre + Voice row */}
+            <div className="w-full max-w-[320px]">
+              <div className="text-[9px] uppercase tracking-[0.1em] text-white/60 font-bold text-center mb-0.5 text-outline-sm">Genre</div>
+              <div className="grid grid-cols-5 gap-0.5 mb-1">
                 {(Object.keys(GENRE_CONFIGS) as MusicGenre[]).map((genre) => {
                   const isSelected = selectedGenre === genre
                   const config = GENRE_CONFIGS[genre]
@@ -783,13 +769,13 @@ export default function GameCanvas({
                       style={{
                         background: isSelected
                           ? `linear-gradient(135deg, hsl(${genreHue}, 70%, 45%), hsl(${genreHue}, 75%, 30%))`
-                          : 'rgba(15, 10, 25, 0.9)',
+                          : 'rgba(20, 15, 35, 0.9)',
                         border: isSelected
                           ? `2px solid hsl(${genreHue}, 90%, 70%)`
                           : '1.5px solid rgba(255,255,255,0.2)',
                       }}
                     >
-                      <span className="text-[8px] font-bold text-outline-sm" style={{ color: isSelected ? 'white' : 'rgba(255,255,255,0.7)' }}>
+                      <span className="text-[9px] font-bold text-outline-sm" style={{ color: isSelected ? 'white' : 'rgba(255,255,255,0.75)' }}>
                         {config.name}
                       </span>
                     </button>
@@ -797,8 +783,8 @@ export default function GameCanvas({
                 })}
               </div>
 
-              {/* TTS toggle */}
-              <div className="flex items-center justify-center mt-2">
+              {/* Voice toggle */}
+              <div className="flex justify-center">
                 <button
                   onClick={() => {
                     const next = !ttsEnabled
@@ -810,32 +796,27 @@ export default function GameCanvas({
                       window.speechSynthesis.speak(warmup)
                     }
                   }}
-                  className="rounded-md px-2 py-1 transition-all"
+                  className="rounded-md px-2.5 py-1 transition-all"
                   style={{
                     background: ttsEnabled
                       ? 'linear-gradient(135deg, hsl(140, 70%, 40%), hsl(140, 75%, 28%))'
-                      : 'rgba(15, 10, 25, 0.9)',
+                      : 'rgba(20, 15, 35, 0.9)',
                     border: ttsEnabled
                       ? '2px solid hsl(140, 90%, 65%)'
                       : '1.5px solid rgba(255,255,255,0.2)',
                   }}
                 >
-                  <span className="text-[8px] font-bold text-outline-sm" style={{ color: ttsEnabled ? 'white' : 'rgba(255,255,255,0.7)' }}>
+                  <span className="text-[9px] font-bold text-outline-sm" style={{ color: ttsEnabled ? 'white' : 'rgba(255,255,255,0.75)' }}>
                     {ttsEnabled ? '🔊 Voice ON' : '🔇 Voice OFF'}
                   </span>
                 </button>
               </div>
-            </motion.div>
+            </div>
 
             {/* Footer */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="mt-2 text-center text-white/50 text-[8px] text-outline-sm"
-            >
+            <div className="mt-1 text-center text-white/50 text-[8px] text-outline-sm">
               Tap sides to move · Tilt to steer · Bounce for Arash
-            </motion.div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

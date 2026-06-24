@@ -216,6 +216,7 @@ export class MusicEngine {
     this.jumpCount = 0
     this.progressionEngine.reset()
     this.melodyEngineV2.reset()
+    this.melodyStep = 0
     this.currentChord = this.progressionEngine.getCurrentChord()
     this.padCurrentChord = this.currentChord
     this.lastMelodyNote = 72
@@ -367,9 +368,30 @@ export class MusicEngine {
 
   // ---- Melody: voice-led with chord tones + scale passing notes ----
 
+  private melodyStep = 0  // tracks position in pre-composed melodies
+
   private playVoiceLedMelody(time?: number) {
     const chord = this.currentChord
     const t = time ?? this.ctx!.currentTime
+    const genre = this.progressionEngine.getGenre()
+    const config = GENRE_CONFIGS[genre]
+
+    // If the genre has pre-composed melodies, use those (doom)
+    if (config.precomposedMelodies) {
+      const progIdx = this.progressionEngine.getProgressionIndex()
+      const melodies = config.precomposedMelodies[progIdx % config.precomposedMelodies.length]
+      const note = melodies[this.melodyStep % melodies.length]
+      this.melodyStep++
+
+      if (note === -1) {
+        // Rest — let previous note ring, don't play anything
+        return
+      }
+
+      this.lastMelodyNote = note
+      this.playMelodyVoice(note, 1.0, t)
+      return
+    }
 
     // Use v2 melody engine if enabled (style-aware, less random)
     if (this.useMelodyV2) {

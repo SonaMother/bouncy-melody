@@ -221,16 +221,18 @@ export interface GenreConfig {
   name: string
   description: string
   progressions: ChordDef[][]
+  // Optional: pre-composed melodies per progression (MIDI notes, -1 = rest)
+  // When present, the engine plays these instead of generating random notes
+  precomposedMelodies?: number[][][]
   // Synthesis parameters
-  masterFilterFreq: number    // low-pass cutoff for the master filter
-  reverbAmount: number        // 0-1, how much reverb
-  delayAmount: number         // 0-1, how much delay
+  masterFilterFreq: number
+  reverbAmount: number
+  delayAmount: number
   padVolume: number
   bassVolume: number
   melodyVolume: number
   chordStabVolume: number
-  // Synth waveform preferences
-  melodyOscType: OscillatorType  // 'sine' | 'triangle' | 'sawtooth' | 'square'
+  melodyOscType: OscillatorType
   bassOscType: OscillatorType
 }
 
@@ -295,6 +297,44 @@ export const GENRE_CONFIGS: Record<MusicGenre, GenreConfig> = {
     name: 'Doom',
     description: 'Emotional funeral doom. Beautiful, sad, heavy.',
     progressions: [DOOM_PROG_1, DOOM_PROG_2, DOOM_PROG_3],
+    // Pre-composed melodies — one array per progression, one note per jump
+    // These are actual composed emotional melodies, NOT random
+    // -1 = rest (let the previous note ring out — crucial for doom feel)
+    precomposedMelodies: [
+      // Prog 1 (Dm9 - Bbmaj9 - Gm6 - Am): descending weeping melody
+      // Dm9: start on the 9th (E), descend to root (D) — sorrowful opening
+      // Bbmaj9: leap up to the 3rd (D), descend to root (Bb) — longing
+      // Gm6: descend from 5th (D) to root (G) — falling
+      // Am: tense hold on the 3rd (C) then resolve down — grief
+      [
+        74, 73, 73, -1,   // E5 → D5 → D5 (hold) — over Dm9
+        74, 70, 70, -1,   // D5 → Bb4 → Bb4 (hold) — over Bbmaj9
+        74, 71, 71, -1,   // D5 → G4 → G4 (hold) — over Gm6
+        72, 69, 69, -1,   // C5 → A4 → A4 (hold) — over Am
+      ],
+      // Prog 2 (Bm9 - Dmaj7 - A9 - Bm6): hopeful sadness melody
+      // Bm9: start on 9th (C#), descend to root (B) — mournful
+      // Dmaj7: ascend to 3rd (F#), hold — brief hope
+      // A9: descend from 5th (E) to root (A) — resolution
+      // Bm6: descend from 6th (G#) to root (B) — final sorrow
+      [
+        73, 71, 71, -1,   // C#5 → B4 → B4 (hold) — over Bm9
+        66, 66, 69, -1,   // F#4 → F#4 → A4 — over Dmaj7 (hopeful)
+        76, 72, 69, -1,   // E5 → C#5 → A4 — over A9 (descending resolution)
+        68, 71, 71, -1,   // G#4 → B4 → B4 — over Bm6 (final sorrow)
+      ],
+      // Prog 3 (Cm9 - D#m7b5 - Abmaj9 - Gm6): funeral march
+      // Cm9: start on 9th (D), descend to root (C) — funeral bell
+      // D#m7b5: tense tritone leap to G# then descend — dissonant grief
+      // Abmaj9: the weeping chord — hold high Ab then descend — emotional climax
+      // Gm6: descend from D to G — falling into despair
+      [
+        74, 72, 72, -1,   // D5 → C5 → C5 (hold) — over Cm9
+        68, 64, 64, -1,   // G#4 → E#4 → E#4 — over D#m7b5 (dissonant)
+        80, 75, 72, -1,   // G#5 → Eb5 → C5 — over Abmaj9 (the weep)
+        74, 71, 67, -1,   // D5 → G4 → G3 — over Gm6 (final descent)
+      ],
+    ],
     masterFilterFreq: 3000,     // moderately dark — lets clean melody through
     reverbAmount: 0.6,          // cavernous — cathedral reverb for emotion
     delayAmount: 0.35,          // long echoes — vast emptiness
@@ -337,6 +377,10 @@ export class ProgressionEngine {
 
   getCurrentChord(): ChordDef {
     return this.currentChord
+  }
+
+  getProgressionIndex(): number {
+    return this.progressionIndex
   }
 
   /** Advance to the next chord. Cycles through progressions, avoids recent chords. */
