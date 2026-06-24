@@ -392,7 +392,7 @@ function drawDustMotes(ctx: CanvasRenderingContext2D, width: number, height: num
     const baseY = (Math.cos(seed * 1.3) * 0.5 + 0.5) * height
     // Slow drift
     const x = baseX + Math.sin(time * 0.3 + seed) * 15
-    const y = (baseY + time * 8 * (0.5 + (i % 3) * 0.2)) % height
+    const y = (baseY + time * (3 + (i * 7 % 10)) * 0.5) % height
     const tw = 0.3 + 0.7 * Math.sin(time * 0.8 + seed)
     const size = 0.5 + (i % 3) * 0.3
 

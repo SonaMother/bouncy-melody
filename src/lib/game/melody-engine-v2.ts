@@ -13,7 +13,7 @@
 
 import { CHORDS, SCALES, type ChordDef } from './music-theory'
 
-export type MelodyStyle = 'lofi' | 'mystic' | 'synthwave' | 'pop' | 'doom'
+export type MelodyStyle = 'lofi' | 'mystic' | 'synthwave' | 'pop' | 'requiem'
 
 interface MelodyProfile {
   // Probability of using a chord tone vs scale tone (0=all scale, 1=all chord)

@@ -36,7 +36,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v1.0.0'
+  const GAME_VERSION = 'v2.0.0'
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -76,22 +76,33 @@ export default function GameCanvas({
     'You are unstoppable!', 'Fantastic progress!', 'Keep bouncing, keep dreaming!',
     'You are a champion!', 'Every jump takes you higher!', 'Believe in yourself!',
     'The sky is not the limit!', 'You make this look easy!', 'Pure perfection!',
-    // Story — Arash the NonExistent
-    'Arash waits for you at the top. Or does He?',
-    'They say Arash does not exist. Climb higher and find out.',
+    // Story — Ah-Rash the NonExistent
+    'Ah-Rash waits for you at the top. Or does He?',
+    'They say Ah-Rash does not exist. Climb higher and find out.',
     'The NonExistent watches. Can you reach Him?',
-    'Every jump brings you closer to Arash. Or closer to the truth.',
-    'Arash is the sky, and you are the climber.',
-    'Does Arash exist? Only the climb will tell.',
+    'Every jump brings you closer to Ah-Rash. Or closer to the truth.',
+    'Ah-Rash is the sky, and you are the climber.',
+    'Does Ah-Rash exist? Only the climb will tell.',
     'The higher you go, the closer to the NonExistent you become.',
-    'Arash is not at the top. Arash IS the top.',
-    'Some say Arash is a myth. You are here to prove them wrong.',
-    'The NonExistent Arash — can faith be reached by jumping?',
-    'Climb for Arash. Climb for truth. Climb for yourself.',
-    'Arash does not exist, yet you climb. That is faith.',
-    'The sky holds no Arash. The sky IS Arash.',
+    'Ah-Rash is not at the top. Ah-Rash IS the top.',
+    'Some say Ah-Rash is a myth. You are here to prove them wrong.',
+    'The NonExistent Ah-Rash. Can faith be reached by jumping?',
+    'Climb for Ah-Rash. Climb for truth. Climb for yourself.',
+    'Ah-Rash does not exist, yet you climb. That is faith.',
+    'The sky holds no Ah-Rash. The sky IS Ah-Rash.',
     'You seek the NonExistent. The NonExistent seeks you.',
-    'Arash whispers: higher. Always higher.',
+    'Ah-Rash whispers: higher. Always higher.',
+    // New story lines — deeper reflections on the NonExistent
+    'The wind speaks of Ah-Rash. Can you hear it?',
+    'Each platform is a prayer. Each jump is an amen.',
+    'Ah-Rash is the question. Your climb is the answer.',
+    'The NonExistent was never at the top. The NonExistent is the climbing.',
+    'When you fall, Ah-Rash catches you in dreams.',
+    'Faith is jumping toward something that may not exist.',
+    'The sky is empty. The sky is Ah-Rash. Both are true.',
+    'You are not climbing toward Ah-Rash. You are becoming Ah-Rash.',
+    'The NonExistent does not wait. The NonExistent climbs with you.',
+    'Ah-Rash is the space between your heartbeats.',
   ]
 
   const speakMotivational = useCallback(() => {
@@ -184,7 +195,7 @@ export default function GameCanvas({
       setSelectedCharacter(storedChar)
     }
     const storedGenre = localStorage.getItem('bouncy-genre') as MusicGenre
-    if (storedGenre === 'lofi' || storedGenre === 'mystic' || storedGenre === 'synthwave' || storedGenre === 'pop' || storedGenre === 'doom') {
+    if (storedGenre === 'lofi' || storedGenre === 'mystic' || storedGenre === 'synthwave' || storedGenre === 'pop' || storedGenre === 'requiem') {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedGenre(storedGenre)
     }
@@ -681,16 +692,20 @@ export default function GameCanvas({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 flex flex-col items-center p-2 pt-3 overflow-y-auto"
-            style={{ zIndex: 20, background: 'rgba(10, 5, 20, 0.92)' }}
+            className="absolute inset-0 flex flex-col items-center justify-center p-3 overflow-y-auto"
+            style={{
+              zIndex: 20,
+              background: 'linear-gradient(180deg, rgba(10,5,20,0.95) 0%, rgba(20,10,35,0.92) 50%, rgba(10,5,20,0.95) 100%)',
+              backdropFilter: 'blur(8px)',
+            }}
           >
-            {/* Title */}
-            <div className="text-center mb-1">
+            {/* Title — centered, elegant */}
+            <div className="text-center mb-3">
               <h1
-                className="text-2xl font-black leading-none text-outline-sm"
+                className="text-3xl font-black leading-tight text-outline-sm"
                 style={{
                   fontFamily: "'Baloo 2', 'Nunito', system-ui, sans-serif",
-                  background: 'linear-gradient(180deg, #fff 0%, #ffe4f0 50%, #f9a8d4 100%)',
+                  background: 'linear-gradient(135deg, #fff 0%, #fce4ec 40%, #f9a8d4 100%)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text',
@@ -698,39 +713,38 @@ export default function GameCanvas({
               >
                 Bouncy Melody
               </h1>
-              <div className="text-[9px] uppercase tracking-[0.15em] text-white/60 text-outline-sm">
-                Seeking the NonExistent Arash
+              <div className="text-[9px] uppercase tracking-[0.2em] text-white/50 text-outline-sm mt-0.5">
+                Seeking the NonExistent Ah-Rash
               </div>
             </div>
 
-            {/* Play + Best in a row */}
-            <div className="flex items-center gap-3 mb-1">
-              <motion.button
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.1, type: 'spring' }}
-                whileHover={{ scale: 1.04 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={startGame}
-                className="px-8 py-1.5 rounded-full font-black text-base text-white text-outline-sm"
-                style={{
-                  background: 'linear-gradient(135deg, #f472b6 0%, #ec4899 50%, #be185d 100%)',
-                  boxShadow: '0 4px 16px rgba(236, 72, 153, 0.4)',
-                  border: '2px solid rgba(255,255,255,0.2)',
-                }}
-              >
-                Play
-              </motion.button>
-              {best > 0 && (
-                <div className="text-white/80 text-[10px] text-outline-sm">
-                  Best: <span className="font-bold text-yellow-200">{best}m</span>
-                </div>
-              )}
-            </div>
+            {/* Play button — prominent */}
+            <motion.button
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.1, type: 'spring' }}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.96 }}
+              onClick={startGame}
+              className="px-10 py-2 rounded-full font-black text-base text-white text-outline-sm mb-1"
+              style={{
+                background: 'linear-gradient(135deg, #f472b6 0%, #ec4899 50%, #be185d 100%)',
+                boxShadow: '0 4px 20px rgba(236, 72, 153, 0.4), inset 0 1px 0 rgba(255,255,255,0.3)',
+                border: '1px solid rgba(255,255,255,0.15)',
+              }}
+            >
+              ▶ Play
+            </motion.button>
 
-            {/* Character grid — fills width */}
-            <div className="w-full max-w-[320px] mb-1">
-              <div className="text-[9px] uppercase tracking-[0.1em] text-white/60 font-bold text-center mb-0.5 text-outline-sm">Character</div>
+            {best > 0 && (
+              <div className="text-white/60 text-[10px] text-outline-sm mb-2">
+                Best: <span className="font-bold text-yellow-200">{best}m</span>
+              </div>
+            )}
+
+            {/* Character grid — fills width, tight */}
+            <div className="w-full max-w-[300px] mb-2">
+              <div className="text-[8px] uppercase tracking-[0.15em] text-white/40 font-bold text-center mb-1 text-outline-sm">Character</div>
               <div className="grid grid-cols-4 gap-1">
                 {(Object.keys(CHARACTER_NAMES) as CharacterType[]).map((type) => {
                   const isSelected = selectedCharacter === type
@@ -742,17 +756,18 @@ export default function GameCanvas({
                       className="relative rounded-lg p-1.5 transition-all"
                       style={{
                         background: isSelected
-                          ? `linear-gradient(135deg, hsl(${accentHue}, 70%, 45%), hsl(${accentHue}, 75%, 30%))`
-                          : 'rgba(20, 15, 35, 0.9)',
+                          ? `linear-gradient(135deg, hsl(${accentHue}, 70%, 45%), hsl(${accentHue}, 75%, 28%))`
+                          : 'rgba(15, 10, 25, 0.8)',
                         border: isSelected
-                          ? `2px solid hsl(${accentHue}, 90%, 70%)`
-                          : '1.5px solid rgba(255,255,255,0.2)',
+                          ? `1.5px solid hsl(${accentHue}, 90%, 70%)`
+                          : '1px solid rgba(255,255,255,0.12)',
+                        boxShadow: isSelected ? `0 0 10px hsla(${accentHue}, 80%, 50%, 0.3)` : 'none',
                       }}
                     >
                       <CharacterPreview type={type} />
                       <div
-                        className="text-[9px] font-bold mt-0.5 text-outline-sm"
-                        style={{ color: isSelected ? `hsl(${accentHue}, 95%, 85%)` : 'rgba(255,255,255,0.75)' }}
+                        className="text-[8px] font-bold mt-0.5 text-outline-sm"
+                        style={{ color: isSelected ? `hsl(${accentHue}, 95%, 82%)` : 'rgba(255,255,255,0.6)' }}
                       >
                         {CHARACTER_NAMES[type]}
                       </div>
@@ -762,14 +777,14 @@ export default function GameCanvas({
               </div>
             </div>
 
-            {/* Genre + Voice row */}
-            <div className="w-full max-w-[320px]">
-              <div className="text-[9px] uppercase tracking-[0.1em] text-white/60 font-bold text-center mb-0.5 text-outline-sm">Genre</div>
-              <div className="grid grid-cols-5 gap-0.5 mb-1">
+            {/* Genre + Voice — compact row */}
+            <div className="w-full max-w-[300px]">
+              <div className="text-[8px] uppercase tracking-[0.15em] text-white/40 font-bold text-center mb-1 text-outline-sm">Genre</div>
+              <div className="grid grid-cols-5 gap-0.5 mb-1.5">
                 {(Object.keys(GENRE_CONFIGS) as MusicGenre[]).map((genre) => {
                   const isSelected = selectedGenre === genre
                   const config = GENRE_CONFIGS[genre]
-                  const genreHue = genre === 'lofi' ? 200 : genre === 'mystic' ? 280 : genre === 'synthwave' ? 320 : genre === 'pop' ? 350 : 0
+                  const genreHue = genre === 'lofi' ? 200 : genre === 'mystic' ? 280 : genre === 'synthwave' ? 320 : genre === 'pop' ? 350 : 210
                   return (
                     <button
                       key={genre}
@@ -777,14 +792,14 @@ export default function GameCanvas({
                       className="rounded py-1 transition-all"
                       style={{
                         background: isSelected
-                          ? `linear-gradient(135deg, hsl(${genreHue}, 70%, 45%), hsl(${genreHue}, 75%, 30%))`
-                          : 'rgba(20, 15, 35, 0.9)',
+                          ? `linear-gradient(135deg, hsl(${genreHue}, 70%, 45%), hsl(${genreHue}, 75%, 28%))`
+                          : 'rgba(15, 10, 25, 0.8)',
                         border: isSelected
-                          ? `2px solid hsl(${genreHue}, 90%, 70%)`
-                          : '1.5px solid rgba(255,255,255,0.2)',
+                          ? `1.5px solid hsl(${genreHue}, 90%, 70%)`
+                          : '1px solid rgba(255,255,255,0.12)',
                       }}
                     >
-                      <span className="text-[9px] font-bold text-outline-sm" style={{ color: isSelected ? 'white' : 'rgba(255,255,255,0.75)' }}>
+                      <span className="text-[8px] font-bold text-outline-sm" style={{ color: isSelected ? 'white' : 'rgba(255,255,255,0.6)' }}>
                         {config.name}
                       </span>
                     </button>
@@ -792,7 +807,7 @@ export default function GameCanvas({
                 })}
               </div>
 
-              {/* Voice toggle */}
+              {/* Voice toggle — minimal */}
               <div className="flex justify-center">
                 <button
                   onClick={() => {
@@ -805,26 +820,26 @@ export default function GameCanvas({
                       window.speechSynthesis.speak(warmup)
                     }
                   }}
-                  className="rounded-md px-2.5 py-1 transition-all"
+                  className="rounded px-2 py-0.5 transition-all"
                   style={{
                     background: ttsEnabled
-                      ? 'linear-gradient(135deg, hsl(140, 70%, 40%), hsl(140, 75%, 28%))'
-                      : 'rgba(20, 15, 35, 0.9)',
+                      ? 'linear-gradient(135deg, hsl(140, 60%, 35%), hsl(140, 65%, 25%))'
+                      : 'rgba(15, 10, 25, 0.8)',
                     border: ttsEnabled
-                      ? '2px solid hsl(140, 90%, 65%)'
-                      : '1.5px solid rgba(255,255,255,0.2)',
+                      ? '1.5px solid hsl(140, 80%, 55%)'
+                      : '1px solid rgba(255,255,255,0.12)',
                   }}
                 >
-                  <span className="text-[9px] font-bold text-outline-sm" style={{ color: ttsEnabled ? 'white' : 'rgba(255,255,255,0.75)' }}>
-                    {ttsEnabled ? '🔊 Voice ON' : '🔇 Voice OFF'}
+                  <span className="text-[8px] font-bold text-outline-sm" style={{ color: ttsEnabled ? 'white' : 'rgba(255,255,255,0.5)' }}>
+                    {ttsEnabled ? '🔊 Voice' : '🔇 Voice'}
                   </span>
                 </button>
               </div>
             </div>
 
             {/* Footer */}
-            <div className="mt-1 text-center text-white/50 text-[8px] text-outline-sm">
-              Tap sides to move · Tilt to steer · Bounce for Arash
+            <div className="mt-2 text-center text-white/40 text-[8px] text-outline-sm">
+              Tap sides to move · Tilt to steer · Bounce for Ah-Rash
             </div>
           </motion.div>
         )}
@@ -883,7 +898,7 @@ export default function GameCanvas({
               transition={{ type: 'spring', delay: 0.2 }}
               className="text-center"
             >
-              <div className="text-[11px] uppercase tracking-[0.3em] text-pink-200/80 font-bold mb-2 text-outline-sm" style={{ textShadow: '0 2px 6px rgba(0,0,0,0.8)' }}>Arash is still watching</div>
+              <div className="text-[11px] uppercase tracking-[0.3em] text-pink-200/80 font-bold mb-2 text-outline-sm" style={{ textShadow: '0 2px 6px rgba(0,0,0,0.8)' }}>Ah-Rash is still watching</div>
               <h2
                 className="text-5xl font-black text-white mb-6 text-outline-sm"
                 style={{

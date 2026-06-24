@@ -212,8 +212,44 @@ const DOOM_PROG_3: ChordDef[] = [
   { root: 48, type: 'min6',   bassNote: 24, scale: 'naturalMinor' },    // Cm6 (i)
 ]
 
+// ====================================================================
+// GENRE 5: REQUIEM (emotional, gloomy, beautiful, touching)
+// Neo-classical ambient. Think Nils Frahm, Ólafur Arnalds, Max Richter,
+// Ludovico Einaudi. Simple, heartbreakingly beautiful piano-like melodies
+// over slow, sustained chords. The beauty comes from:
+// - Simple diatonic progressions (no dissonance — pure consonance)
+// - Slow melodic phrases that resolve to chord tones
+// - Lots of space (rests) — let each note breathe
+// - Major 7 and minor 9 chords for warmth and color
+// - Descending melodic lines that feel like acceptance, not despair
+// ====================================================================
+
+// Am - F - C - G (vi - IV - I - V in C) — emotional but hopeful
+const REQUIEM_PROG_1: ChordDef[] = [
+  { root: 57, type: 'min9',   bassNote: 33, scale: 'aeolian' },   // Am9 (vi) — gentle sorrow
+  { root: 53, type: 'maj9',   bassNote: 29, scale: 'lydian' },    // Fmaj9 (IV) — warmth
+  { root: 60, type: 'maj9',   bassNote: 36, scale: 'major' },     // Cmaj9 (I) — resolution/home
+  { root: 55, type: 'dom9',   bassNote: 31, scale: 'mixolydian' }, // G9 (V) — gentle tension
+]
+
+// Em - C - G - D (vi - IV - I - V in G) — same pattern, higher key
+const REQUIEM_PROG_2: ChordDef[] = [
+  { root: 64, type: 'min9',   bassNote: 40, scale: 'aeolian' },   // Em9 (vi)
+  { root: 60, type: 'maj9',   bassNote: 36, scale: 'lydian' },    // Cmaj9 (IV)
+  { root: 67, type: 'maj9',   bassNote: 43, scale: 'major' },     // Gmaj9 (I)
+  { root: 62, type: 'dom9',   bassNote: 38, scale: 'mixolydian' }, // D9 (V)
+]
+
+// Dm - Bb - F - C (vi - IV - I - V in F) — warm and intimate
+const REQUIEM_PROG_3: ChordDef[] = [
+  { root: 62, type: 'min9',   bassNote: 38, scale: 'aeolian' },   // Dm9 (vi)
+  { root: 58, type: 'maj9',   bassNote: 34, scale: 'lydian' },    // Bbmaj9 (IV)
+  { root: 65, type: 'maj9',   bassNote: 41, scale: 'major' },     // Fmaj9 (I)
+  { root: 60, type: 'dom9',   bassNote: 36, scale: 'mixolydian' }, // C9 (V)
+]
+
 // ---- Genre configurations ----
-export type MusicGenre = 'lofi' | 'mystic' | 'synthwave' | 'pop' | 'doom'
+export type MusicGenre = 'lofi' | 'mystic' | 'synthwave' | 'pop' | 'requiem'
 
 export interface GenreConfig {
   name: string
@@ -319,42 +355,48 @@ export const GENRE_CONFIGS: Record<MusicGenre, GenreConfig> = {
     melodyOscType: 'triangle',
     bassOscType: 'square',
   },
-  doom: {
-    name: 'Doom',
-    description: 'Emotional funeral doom. Beautiful, sad, heavy.',
-    progressions: [DOOM_PROG_1, DOOM_PROG_2, DOOM_PROG_3],
+  requiem: {
+    name: 'Requiem',
+    description: 'Emotional, beautiful, touching. Neo-classical ambient.',
+    progressions: [REQUIEM_PROG_1, REQUIEM_PROG_2, REQUIEM_PROG_3],
+    // Pre-composed melodies — Ólafur Arnalds / Nils Frahm style
+    // Simple, slow, beautiful phrases. Lots of rests to let notes breathe.
     precomposedMelodies: [
-      // Prog 1 (Dm9-Bbmaj9-Gm6-Am): descending lament
+      // Prog 1 (Am9 - Fmaj9 - Cmaj9 - G9): gentle sorrow → warmth → home → tension
+      // Am9: start on the 5th (E), slowly descend to root (A) — gentle weeping
+      // Fmaj9: hold the 3rd (A), step up to the 9th (G) — warmth rising
+      // Cmaj9: descend from 5th (G) through 3rd (E) to root (C) — coming home
+      // G9: hold the 3rd (B), resolve to the 5th (D) — gentle tension, ready to loop
       [
-        74, 73, 73, -1,   // E5 → D5 → D5 — over Dm9 (sorrowful)
-        74, 70, 70, -1,   // D5 → Bb4 → Bb4 — over Bbmaj9 (longing)
-        74, 71, 71, -1,   // D5 → G4 → G4 — over Gm6 (falling)
-        72, 69, 69, -1,   // C5 → A4 → A4 — over Am (grief)
+        76, 76, 73, -1,   // E5 → E5 → A4 — over Am9 (gentle descent)
+        69, 69, 72, -1,   // A4 → A4 → C5 — over Fmaj9 (warmth rising)
+        79, 76, 72, -1,   // G5 → E5 → C5 — over Cmaj9 (coming home)
+        71, 71, 74, -1,   // B4 → B4 → D5 — over G9 (gentle tension)
       ],
-      // Prog 2 (Bm9-Dmaj7-A9-Bm6): hopeful sadness
+      // Prog 2 (Em9 - Cmaj9 - Gmaj9 - D9): same pattern in G, higher
       [
-        73, 71, 71, -1,   // C#5 → B4 → B4 — over Bm9
-        66, 66, 69, -1,   // F#4 → F#4 → A4 — over Dmaj7 (hope)
-        76, 72, 69, -1,   // E5 → C#5 → A4 — over A9 (resolve)
-        68, 71, 71, -1,   // G#4 → B4 → B4 — over Bm6 (sorrow)
+        71, 71, 67, -1,   // B4 → B4 → G4 — over Em9 (gentle descent)
+        76, 76, 79, -1,   // E5 → E5 → G5 — over Cmaj9 (warmth)
+        74, 74, 71, -1,   // D5 → D5 → B4 — over Gmaj9 (home)
+        66, 66, 69, -1,   // F#4 → F#4 → A4 — over D9 (tension)
       ],
-      // Prog 3 (Cm9-Abmaj9-Gm-Cm6): funeral march
+      // Prog 3 (Dm9 - Bbmaj9 - Fmaj9 - C9): warm and intimate
       [
-        74, 72, 72, -1,   // D5 → C5 → C5 — over Cm9 (bell)
-        80, 75, 72, -1,   // Ab5 → Eb5 → C5 — over Abmaj9 (weep)
-        74, 71, 71, -1,   // D5 → G4 → G4 — over Gm (descend)
-        72, 72, 67, -1,   // C5 → C5 → G4 — over Cm6 (final)
+        74, 74, 69, -1,   // D5 → D5 → A4 — over Dm9
+        70, 70, 74, -1,   // Bb4 → Bb4 → D5 — over Bbmaj9 (warmth)
+        77, 77, 72, -1,   // F5 → F5 → C5 — over Fmaj9 (home)
+        72, 72, 76, -1,   // C5 → C5 → E5 — over C9 (tension)
       ],
     ],
-    masterFilterFreq: 3000,     // moderately dark — lets clean melody through
-    reverbAmount: 0.6,          // cavernous — cathedral reverb for emotion
-    delayAmount: 0.35,          // long echoes — vast emptiness
-    padVolume: 0.08,            // atmospheric drone
-    bassVolume: 0.48,           // heavy bass — the crushing foundation
-    melodyVolume: 0.20,         // clean melody audible — the emotional voice
-    chordStabVolume: 0.11,      // soft chord stabs — not harsh
-    melodyOscType: 'sine',      // CLEAN sine melody — mournful, pure (contrast with heavy bass)
-    bassOscType: 'sawtooth',    // heavy sawtooth bass — the crushing weight
+    masterFilterFreq: 4000,     // warm but clear — lets the pure sine melody through
+    reverbAmount: 0.65,         // lots of reverb — creates space and emotion
+    delayAmount: 0.30,          // gentle echo
+    padVolume: 0.06,            // soft pad — atmospheric warmth
+    bassVolume: 0.32,           // gentle bass — not crushing, supportive
+    melodyVolume: 0.22,         // clear melody — the emotional voice
+    chordStabVolume: 0.08,      // very soft chord stabs
+    melodyOscType: 'sine',      // pure sine — piano-like, clean, emotional
+    bassOscType: 'sine',        // soft sine bass — warm and gentle
   },
 }
 

@@ -249,7 +249,7 @@ function generateInitialPlatforms(platforms: Platform[], height: number, startId
 
   // After the safe zone, generate normally but with slightly easier difficulty
   while (y > -3000) {
-    const gap = 85 + Math.random() * 75  // 85-160px (reachable with normal jump)
+    const gap = 80 + Math.random() * 70  // 80-150px (safely under 217px max jump)
     y -= gap
     const x = 30 + Math.random() * (WORLD_WIDTH - 130)
     const w = 90 + Math.random() * 30
@@ -262,7 +262,9 @@ function generateInitialPlatforms(platforms: Platform[], height: number, startId
 function ensurePlatformsAbove(state: GameState, topScreenY: number) {
   // Keep generating until highestPlatformY is well above the top of the screen
   while (state.highestPlatformY > topScreenY - 800) {
-    const gap = 80 + Math.random() * (80 + state.difficulty * 20)
+    // Max jump height is ~217px (780^2 / 2*1400). Keep gaps well within reach.
+    // At difficulty 3: 80 + 70 + 3*10 = 180px max — safely under 217px
+    const gap = 75 + Math.random() * (65 + state.difficulty * 10)
     state.highestPlatformY -= gap
     const w = Math.max(70, 100 - state.difficulty * 5 + Math.random() * 30)
     const x = 30 + Math.random() * (WORLD_WIDTH - w - 30)
