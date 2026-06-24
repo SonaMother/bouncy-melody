@@ -36,7 +36,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v2.0.0'
+  const GAME_VERSION = 'v2.0.1'  // hotfix: restored Lofi/Mystic/Synthwave to v1 melody engine
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
