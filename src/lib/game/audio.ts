@@ -796,8 +796,9 @@ export class MusicEngine {
       const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
       const noteName = midiToNoteName(midi)
       const velocity = Math.min(1, volume * config.melodyVolume * this.melodyVolumeMult * 2)
-      // Use 'immediate' for 0-latency realtime playback
-      this.piano.triggerAttackRelease(noteName, 0.5, 'immediate', velocity)
+      // Omit time argument = play immediately (Tone.js plays "now")
+      // Don't use 'immediate' string — it's invalid in Tone.js v15
+      this.piano.triggerAttackRelease(noteName, 0.5, undefined, velocity)
       return
     }
 
@@ -858,15 +859,11 @@ export class MusicEngine {
 
     // If real piano is loaded, use it for bass too (left hand piano bass)
     if (this.pianoReady && this.piano && this.pianoEnabled) {
-      try {
-        const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
-        const noteName = midiToNoteName(midi)
-        const velocity = Math.min(1, volume * config.bassVolume * this.bassVolumeMult * 0.8)
-        this.piano.triggerAttackRelease(noteName, 0.6, 'immediate', velocity)
-        return
-      } catch {
-        // Fall through to synth if piano fails
-      }
+      const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
+      const noteName = midiToNoteName(midi)
+      const velocity = Math.min(1, volume * config.bassVolume * this.bassVolumeMult * 0.8)
+      this.piano.triggerAttackRelease(noteName, 0.6, undefined, velocity)
+      return
     }
 
     const freq = midiToFreq(midi)
