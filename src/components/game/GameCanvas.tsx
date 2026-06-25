@@ -41,7 +41,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v2.4.0'  // real character voices, Hammond organ, Leslie pad, combo decouple
+  const GAME_VERSION = 'v2.5.0'  // cute anime voices, pad fixed, LFO richer, no start clip
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)

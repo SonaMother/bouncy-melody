@@ -13,22 +13,25 @@ export type SfxAction = 'jump' | 'land' | 'boost' | 'break' | 'bouncy' | 'gameov
 
 // Real sound samples per action. Multiple variants per action for variety.
 // These are loaded from /public/sfx/*.ogg
-// - voice_*.ogg: real human character voices (CC0 from Freesound) — "wee", "yay", "aww"
+// - voice_*.ogg: real cute character voices (CC0 from Freesound) — anime/cartoon style
 // - jump/bounce/pop: real game SFX (from open-source game repos)
 // - cat_purr: real cat purr
+//
+// IMPORTANT: "weee" sounds are ONLY for boost (high jumps), not normal jumps.
+// Normal jumps use cute giggles/yays. High jumps (boost) get the "weee" sounds.
 const SAMPLE_MAP: Record<SfxAction, string[]> = {
-  // Jump — cute character voices (happy "yay/giggle") + game jump sounds
-  jump: ['voice_giggle.ogg', 'voice_yay_3.ogg', 'voice_yeah.ogg', 'jump_2.ogg', 'voice_yay_1.ogg'],
+  // Jump — cute happy voices (giggle/yay/yeah) + game jump sounds (NO "weee" here!)
+  jump: ['voice_giggle.ogg', 'voice_yay_3.ogg', 'voice_yeah.ogg', 'jump_2.ogg', 'voice_yay_1.ogg', 'voice_laugh_1.ogg'],
   // Land — pop sounds (soft landing impact)
   land: ['pop_1.ogg', 'pop_2.ogg', 'pop_3.ogg'],
-  // Boost — excited "weee/wahoo/woohoo" voices (jumping high!)
-  boost: ['voice_wee_1.ogg', 'voice_wee_2.ogg', 'voice_wahoo.ogg', 'voice_woohoo.ogg', 'jump_3.ogg'],
-  // Break — sad "aww" voices (falling down / combo lost)
-  break: ['voice_aww_1.ogg', 'voice_aww_2.ogg', 'pop_2.ogg'],
+  // Boost — "weee" sounds ONLY here (high jumps!). Cute anime/cartoon wee + game jump
+  boost: ['voice_wee_1.ogg', 'voice_wee_3.ogg', 'voice_wee_4.ogg', 'voice_wee_5.ogg', 'jump_3.ogg'],
+  // Break — cute sad voices (falling down) — NOT male groans, NOT laughter
+  break: ['voice_aww_3.ogg', 'voice_aww_4.ogg', 'pop_2.ogg'],
   // Bouncy — real bounce sounds + happy voice
   bouncy: ['bounce_1.ogg', 'bounce_2.ogg', 'voice_yay_2.ogg', 'jump_1.ogg'],
-  // Game over — sad "aww" + cat purr (melancholy)
-  gameover: ['voice_aww_1.ogg', 'cat_purr.ogg', 'voice_aww_2.ogg'],
+  // Game over — sad/melancholy (NOT laughter!) — cute girl "aww" + sigh + cat purr
+  gameover: ['voice_sad_1.ogg', 'voice_sigh_1.ogg', 'cat_purr.ogg'],
 }
 
 // Procedural fallback presets (used while samples load or if loading fails)

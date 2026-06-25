@@ -98,7 +98,12 @@ export class MusicEngine {
 
       // Master chain: masterGain -> masterFilter (lowpass) -> analyser -> destination
       this.masterGain = this.ctx.createGain()
-      this.masterGain.gain.value = this.muted ? 0 : 0.7
+      // Start at ZERO and fade in over 2 seconds to prevent loud pop/click
+      // on game start that was clipping audio interfaces.
+      this.masterGain.gain.value = 0
+      const targetVol = this.muted ? 0 : 0.7
+      this.masterGain.gain.setValueAtTime(0, this.ctx.currentTime)
+      this.masterGain.gain.linearRampToValueAtTime(targetVol, this.ctx.currentTime + 2.0)
 
       this.masterFilter = this.ctx.createBiquadFilter()
       this.masterFilter.type = 'lowpass'
@@ -302,29 +307,33 @@ export class MusicEngine {
     osc.start()
 
     // Tremolo LFO (amplitude modulation) — Leslie rotary speaker effect
-    // Speed: ~5-7 Hz (slow choral rotation). Depth: subtle (0.15).
+    // SLOW: 1.5-2.5 Hz (was 5-6 Hz which was too fast/artificial).
+    // Real Leslie speakers rotate at ~1.5 Hz (slow) to ~5.5 Hz (fast chorale).
+    // We use slow speed for a gentle, breathing swirl.
     const tremoloLfo = ctx.createOscillator()
     tremoloLfo.type = 'sine'
-    tremoloLfo.frequency.value = 5.0 + (phaseOffset % 3) * 0.5  // 5-6 Hz, varies per voice
+    tremoloLfo.frequency.value = 1.5 + (phaseOffset % 3) * 0.3  // 1.5-2.1 Hz, varies per voice
     const tremoloGain = ctx.createGain()
-    tremoloGain.gain.value = 0.15  // 15% amplitude modulation — subtle swirl
-    // Offset phase so voices don't sync
-    const tremoloPhase = ctx.createDelay(0.5)
-    tremoloPhase.delayTime.value = (phaseOffset * 0.07) % 0.5
+    tremoloGain.gain.value = 0.20  // 20% amplitude modulation — subtle swirl
+    // Offset phase so voices don't sync — use delay for true phase offset
+    const tremoloPhase = ctx.createDelay(1.0)
+    tremoloPhase.delayTime.value = (phaseOffset * 0.13) % 1.0
     tremoloLfo.connect(tremoloPhase)
     tremoloPhase.connect(tremoloGain)
     tremoloGain.connect(gain.gain)  // modulate the gain
     tremoloLfo.start()
 
     // Vibrato LFO (pitch modulation) — Doppler effect of rotating speaker
-    // Slower than tremolo, very subtle pitch wobble
+    // MUCH SLOWER than tremolo: 0.5-0.9 Hz (was 4.5 Hz which synced with tremolo).
+    // Different frequency from tremolo creates rich, complex modulation instead
+    // of artificial single-speed wobble.
     const vibratoLfo = ctx.createOscillator()
     vibratoLfo.type = 'sine'
-    vibratoLfo.frequency.value = 4.5 + (phaseOffset % 2) * 0.4  // slightly different from tremolo
+    vibratoLfo.frequency.value = 0.5 + (phaseOffset % 4) * 0.15  // 0.5-0.95 Hz — much slower than tremolo
     const vibratoGain = ctx.createGain()
-    vibratoGain.gain.value = 3  // 3 cents — very subtle pitch wobble
-    const vibratoPhase = ctx.createDelay(0.5)
-    vibratoPhase.delayTime.value = (phaseOffset * 0.11) % 0.5
+    vibratoGain.gain.value = 4  // 4 cents — subtle pitch wobble
+    const vibratoPhase = ctx.createDelay(2.0)
+    vibratoPhase.delayTime.value = (phaseOffset * 0.23) % 2.0
     vibratoLfo.connect(vibratoPhase)
     vibratoPhase.connect(vibratoGain)
     vibratoGain.connect(osc.frequency)  // modulate the pitch
