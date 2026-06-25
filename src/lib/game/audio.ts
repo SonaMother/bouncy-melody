@@ -20,13 +20,15 @@ import {
   type ChordDef,
   type MusicGenre,
   midiToFreq,
+  midiToNoteName,
   getChordTonesInRange,
   getScaleTonesInRange,
 } from './music-theory'
 import { MelodyEngineV2 } from './melody-engine-v2'
-import { SplendidGrandPiano } from 'smplr'
-// Real sampled grand piano (SplendidGrandPiano) for melody notes.
-// Fetches real piano samples from CDN. Falls back to synth if not loaded.
+import * as Tone from 'tone'
+// Real sampled grand piano via Tone.js Sampler + Salamander Grand Piano CDN.
+// Salamander = Yamaha C5, the gold standard free sampled piano for web.
+// Loads only 4 sample files (not 226 like smplr — no rate limiting).
 
 // Default volumes (overridden by genre config)
 const VOL = {
@@ -165,24 +167,33 @@ export class MusicEngine {
     }
   }
 
-  /** Initialize real sampled grand piano (loads from CDN in background). */
+  /** Initialize real sampled grand piano via Tone.js Sampler (Salamander CDN). */
   private initPiano() {
-    if (this.pianoLoading || this.piano || !this.ctx || !this.pianoEnabled) return
+    if (this.pianoLoading || this.piano || !this.pianoEnabled) return
     this.pianoLoading = true
     try {
-      this.piano = SplendidGrandPiano(this.ctx, { decayTime: 1.5 })
-      // Connect piano output to master gain
-      this.piano.output.connect(this.masterGain!)
-      this.piano.ready.then(() => {
-        this.pianoReady = true
-        this.pianoLoading = false
-        console.log('Real piano loaded — melody will use sampled grand piano')
-      }).catch((e: any) => {
-        console.warn('Piano load failed, using synth melody', e)
-        this.pianoLoading = false
-      })
+      // Create Tone.js Sampler with 4 sample notes from Salamander Grand Piano CDN
+      // Tone.js auto-pitches all other notes from these 4 reference samples
+      this.piano = new Tone.Sampler({
+        urls: {
+          C4: 'C4.mp3',
+          'D#4': 'Ds4.mp3',
+          'F#4': 'Fs4.mp3',
+          A4: 'A4.mp3',
+        },
+        release: 1,
+        baseUrl: 'https://tonejs.github.io/audio/salamander/',
+        onload: () => {
+          this.pianoReady = true
+          this.pianoLoading = false
+          console.log('Real piano (Salamander) loaded — melody will use sampled grand piano')
+        },
+      }).toDestination()
+
+      // Set initial volume (Tone.js uses dB, -12dB = ~0.25 linear)
+      this.piano.volume.value = -12
     } catch (e) {
-      console.warn('Piano init failed', e)
+      console.warn('Piano init failed, using synth melody', e)
       this.pianoLoading = false
     }
   }
@@ -254,10 +265,11 @@ export class MusicEngine {
 
   /** Set layer volume multipliers (0-1, multiplies with genre config volumes). */
   setBassVolumeMult(v: number) {
-    this.bassVolumeMult = v
+    // Scale 0-1 to 0-2 so user can boost above default if desired
+    this.bassVolumeMult = v * 2
   }
   setPadVolumeMult(v: number) {
-    this.padVolumeMult = v
+    this.padVolumeMult = v * 2  // scale 0-1 to 0-2
     // Apply immediately to pad voices
     if (this.ctx) {
       const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
@@ -265,11 +277,17 @@ export class MusicEngine {
     }
   }
   setMelodyVolumeMult(v: number) {
-    this.melodyVolumeMult = v
+    this.melodyVolumeMult = v * 2  // scale 0-1 to 0-2
+    // Update piano volume if using Tone.js
+    if (this.piano && this.pianoReady) {
+      // Tone.js uses dB. 0 = unity, -6 = half, -12 = quarter
+      const db = v > 0 ? 20 * Math.log10(v) : -60
+      this.piano.volume.value = db
+    }
   }
-  getBassVolumeMult() { return this.bassVolumeMult }
-  getPadVolumeMult() { return this.padVolumeMult }
-  getMelodyVolumeMult() { return this.melodyVolumeMult }
+  getBassVolumeMult() { return this.bassVolumeMult / 2 }
+  getPadVolumeMult() { return this.padVolumeMult / 2 }
+  getMelodyVolumeMult() { return this.melodyVolumeMult / 2 }
 
   start() {
     if (!this.ctx || this.running) return
@@ -741,16 +759,16 @@ export class MusicEngine {
     if (!this.ctx || !this.masterGain || !this.reverbBus || !this.delayBus) return
     const t = time ?? this.ctx.currentTime
 
-    // If real piano is loaded, use it for melody (real sampled grand piano!)
+    // If real piano (Tone.js Sampler) is loaded, use it for melody
     if (this.pianoReady && this.piano && this.pianoEnabled) {
       try {
         const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
-        this.piano.start({
-          note: midi,
-          time: t,
-          duration: 1.2,
-          velocity: Math.round(volume * config.melodyVolume * 100),
-        })
+        // Convert MIDI number to note name (Tone.js format: C4, D#4, etc.)
+        const noteName = midiToNoteName(midi)
+        // Tone.js velocity is 0-1
+        const velocity = Math.min(1, volume * config.melodyVolume * this.melodyVolumeMult * 2)
+        // triggerAttackRelease(note, duration, time, velocity)
+        this.piano.triggerAttackRelease(noteName, 1.2, t, velocity)
         return
       } catch {
         // Fall through to synth if piano fails

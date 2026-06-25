@@ -19,17 +19,17 @@ export type SfxAction = 'jump' | 'land' | 'boost' | 'break' | 'bouncy' | 'gameov
 // (jump/bounce/pop sounds) + procedural formant synthesis as fallback.
 // (User rejected all other downloaded voice samples as "not cute" / "screaming males")
 const SAMPLE_MAP: Record<SfxAction, string[]> = {
-  // Jump — real game jump sounds + procedural synth (NO voice samples)
-  jump: ['jump_1.ogg', 'jump_2.ogg', 'jump_3.ogg'],
+  // Jump — pop sounds (soft platform hit) — NO bad jump sounds
+  jump: ['pop_1.ogg', 'pop_2.ogg'],
   // Land — pop sounds (soft landing impact)
-  land: ['pop_1.ogg', 'pop_2.ogg', 'pop_3.ogg'],
-  // Boost — the ONE cute "weee" voice + game jump sounds (HIGH JUMPS ONLY)
-  boost: ['voice_wee_1.ogg', 'jump_3.ogg', 'jump_1.ogg'],
-  // Break — pop sounds (no voices — user rejected them)
-  break: ['pop_2.ogg', 'pop_3.ogg', 'pop_1.ogg'],
-  // Bouncy — real bounce sounds
-  bouncy: ['bounce_1.ogg', 'bounce_2.ogg', 'jump_2.ogg'],
-  // Game over — just procedural synth (no cat purr — user heard it as random animal sound)
+  land: ['pop_1.ogg', 'pop_2.ogg'],
+  // Boost — "weee" sounds (HIGH JUMPS ONLY) + spring/boing
+  boost: ['voice_wee_1.ogg', 'voice_wee_3.ogg', 'voice_wee_4.ogg', 'voice_wee_5.ogg', 'spring_1.ogg'],
+  // Break — pop sounds
+  break: ['pop_2.ogg', 'pop_1.ogg'],
+  // Bouncy — real boing/spring sounds for trampoline platforms
+  bouncy: ['boing_1.ogg', 'boing_2.ogg', 'spring_1.ogg', 'bounce_1.ogg'],
+  // Game over — procedural synth (no samples)
   gameover: [],
 }
 
@@ -79,6 +79,7 @@ const FALLBACK_PRESETS: Record<SfxAction, FallbackParams[]> = {
 export class CreatureSfxEngine {
   private ctx: AudioContext | null = null
   private masterGain: GainNode | null = null
+  private limiter: DynamicsCompressorNode | null = null  // normalizes SFX loudness
   private queues: Record<SfxAction, NonRepeatingQueue>
   private enabled = true
   private volume = 0.35  // lowered — was 0.7, pop/jump sounds were extremely loud
@@ -103,7 +104,21 @@ export class CreatureSfxEngine {
       this.ctx = new Ctx()
       this.masterGain = this.ctx.createGain()
       this.masterGain.gain.value = this.volume
-      this.masterGain.connect(this.ctx.destination)
+
+      // Add a limiter/compressor to normalize all SFX to equal loudness.
+      // Different samples have different peak levels — this evens them out
+      // so no SFX is extremely loud or extremely quiet.
+      this.limiter = this.ctx.createDynamicsCompressor()
+      this.limiter.threshold.value = -10   // start compressing above -10dB
+      this.limiter.knee.value = 6          // soft knee
+      this.limiter.ratio.value = 12        // 12:1 compression (limiter-ish)
+      this.limiter.attack.value = 0.003    // 3ms attack (fast)
+      this.limiter.release.value = 0.1     // 100ms release
+
+      // Chain: masterGain → limiter → destination
+      this.masterGain.connect(this.limiter)
+      this.limiter.connect(this.ctx.destination)
+
       // Preload all samples
       this.preloadSamples()
     } catch (e) {

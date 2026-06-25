@@ -41,7 +41,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v3.0.0'  // real piano, audio stop fix, layer volume controls, pad quieter
+  const GAME_VERSION = 'v3.1.0'  // Tone.js real piano, SFX limiter, better boing/jump sounds
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
