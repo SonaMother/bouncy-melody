@@ -175,6 +175,8 @@ export class MusicEngine {
       // DON'T use Tone.setContext — it breaks in Tone.js v15 with raw AudioContext.
       // Let Tone.js use its own AudioContext. We connect the output to the game's
       // master gain so volume controls work.
+      // Use LOCAL piano samples (downloaded to /public/sfx/piano/)
+      // This avoids CDN loading delays and ensures piano works immediately.
       this.piano = new Tone.Sampler({
         urls: {
           C4: 'C4.mp3',
@@ -183,7 +185,7 @@ export class MusicEngine {
           A4: 'A4.mp3',
         },
         release: 1,
-        baseUrl: 'https://tonejs.github.io/audio/salamander/',
+        baseUrl: '/sfx/piano/',
         onload: () => {
           this.pianoReady = true
           this.pianoLoading = false
@@ -417,7 +419,7 @@ export class MusicEngine {
       drawbarOsc.type = 'sine'
       drawbarOsc.frequency.value = fundamentalFreq * harmonic
       const drawbarGain = ctx.createGain()
-      drawbarGain.gain.value = drawbarVol * 0.06
+      drawbarGain.gain.value = drawbarVol * 0.15  // audible — was 0.06 (too quiet)
       drawbarOsc.connect(drawbarGain)
       drawbarGain.connect(gain)
       drawbarOsc.start()
@@ -858,6 +860,20 @@ export class MusicEngine {
   private playBassVoice(midi: number, volume: number, time?: number) {
     if (!this.ctx || !this.masterGain) return
     const t = time ?? this.ctx.currentTime
+
+    // If real piano is loaded, use it for bass too (left hand piano bass)
+    if (this.pianoReady && this.piano && this.pianoEnabled) {
+      try {
+        const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
+        const noteName = midiToNoteName(midi)
+        const velocity = Math.min(1, volume * config.bassVolume * this.bassVolumeMult * 0.8)
+        this.piano.triggerAttackRelease(noteName, 0.6, 'immediate', velocity)
+        return
+      } catch {
+        // Fall through to synth if piano fails
+      }
+    }
+
     const freq = midiToFreq(midi)
     const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
 

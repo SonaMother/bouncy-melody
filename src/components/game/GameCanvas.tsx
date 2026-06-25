@@ -41,7 +41,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v3.6.0'  // restore original volumes — bass was 3x too loud
+  const GAME_VERSION = 'v3.7.0'  // local piano samples, piano bass, pad louder
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
