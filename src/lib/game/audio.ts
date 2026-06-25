@@ -292,7 +292,8 @@ export class MusicEngine {
     osc.start()
 
     // Create 8 additional drawbar oscillators (harmonics 2-9)
-    // These sum into the main gain, creating the Hammond timbre
+    // These sum into the main gain, creating the Hammond timbre.
+    // Scaled LOW because 9 oscillators summing together gets loud fast.
     for (let d = 1; d < MusicEngine.DRAWBAR_HARMONICS.length; d++) {
       const harmonic = MusicEngine.DRAWBAR_HARMONICS[d]
       const drawbarVol = MusicEngine.DRAWBAR_VOLUMES[d]
@@ -300,7 +301,7 @@ export class MusicEngine {
       drawbarOsc.type = 'sine'
       drawbarOsc.frequency.value = fundamentalFreq * harmonic
       const drawbarGain = ctx.createGain()
-      drawbarGain.gain.value = drawbarVol * 0.3  // scaled down so sum isn't too loud
+      drawbarGain.gain.value = drawbarVol * 0.12  // scaled down — 9 osc summing
       drawbarOsc.connect(drawbarGain)
       drawbarGain.connect(gain)
       drawbarOsc.start()
@@ -319,12 +320,13 @@ export class MusicEngine {
     tremoloGain.connect(gain.gain)
     tremoloLfo.start()
 
-    // Leslie vibrato LFO (pitch modulation) — MUCH slower, strong depth
+    // Leslie vibrato LFO (pitch modulation) — slow, SUBTLE depth
+    // Too much vibrato makes chords sound out of tune. Keep it gentle.
     const vibratoLfo = ctx.createOscillator()
     vibratoLfo.type = 'sine'
     vibratoLfo.frequency.value = 0.4 + (phaseOffset % 4) * 0.12  // 0.4-0.76 Hz
     const vibratoGain = ctx.createGain()
-    vibratoGain.gain.value = 10  // 10 cents — noticeable pitch wobble
+    vibratoGain.gain.value = 3  // 3 cents — subtle, won't sound out of tune
     const vibratoPhase = ctx.createDelay(2.0)
     vibratoPhase.delayTime.value = (phaseOffset * 0.29) % 2.0
     vibratoLfo.connect(vibratoPhase)

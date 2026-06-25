@@ -29,8 +29,8 @@ const SAMPLE_MAP: Record<SfxAction, string[]> = {
   break: ['pop_2.ogg', 'pop_3.ogg', 'pop_1.ogg'],
   // Bouncy — real bounce sounds
   bouncy: ['bounce_1.ogg', 'bounce_2.ogg', 'jump_2.ogg'],
-  // Game over — cat purr (melancholy, no laughter, no bad voices)
-  gameover: ['cat_purr.ogg'],
+  // Game over — just procedural synth (no cat purr — user heard it as random animal sound)
+  gameover: [],
 }
 
 // Procedural fallback presets (used while samples load or if loading fails)
@@ -160,6 +160,15 @@ export class CreatureSfxEngine {
     this.resume()
 
     const files = SAMPLE_MAP[action]
+
+    // If no samples for this action, use procedural fallback directly
+    if (files.length === 0) {
+      const fallbacks = FALLBACK_PRESETS[action]
+      const params = fallbacks[Math.floor(Math.random() * fallbacks.length)]
+      this.synthesize(params)
+      return
+    }
+
     const idx = this.queues[action].next()
     const file = files[idx % files.length]
 

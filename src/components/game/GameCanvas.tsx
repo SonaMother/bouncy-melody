@@ -41,7 +41,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v2.8.0'  // real additive Hammond pad, no angel doubling, quiet
+  const GAME_VERSION = 'v2.9.0'  // fix out-of-tune vibrato, quiet drawbars, no cat purr
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
