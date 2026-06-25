@@ -793,17 +793,12 @@ export class MusicEngine {
 
     // If real piano (Tone.js Sampler) is loaded, use it for melody
     if (this.pianoReady && this.piano && this.pianoEnabled) {
-      try {
-        const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
-        const noteName = midiToNoteName(midi)
-        const velocity = Math.min(1, volume * config.melodyVolume * this.melodyVolumeMult * 2)
-        // Use 'immediate' for 0-latency realtime playback (no scheduling delay).
-        // Tone.now() still uses the transport which can have lookahead delay.
-        this.piano.triggerAttackRelease(noteName, 0.5, 'immediate', velocity)
-        return
-      } catch {
-        // Fall through to synth if piano fails
-      }
+      const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
+      const noteName = midiToNoteName(midi)
+      const velocity = Math.min(1, volume * config.melodyVolume * this.melodyVolumeMult * 2)
+      // Use 'immediate' for 0-latency realtime playback
+      this.piano.triggerAttackRelease(noteName, 0.5, 'immediate', velocity)
+      return
     }
 
     const freq = midiToFreq(midi)

@@ -41,7 +41,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v3.7.0'  // local piano samples, piano bass, pad louder
+  const GAME_VERSION = 'v3.8.0'  // fix Tone.start order, remove silent catch
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -757,19 +757,25 @@ export default function GameCanvas({
     // Make sure the selected character is applied to the game state
     state.character.type = selectedCharacter
     if (!started) {
+      // Start Tone.js audio context FIRST (before creating Sampler)
+      // Browser requires user gesture — Play button click counts.
+      try {
+        const { default: Tone } = await import('tone')
+        await Tone.start()
+      } catch {}
       await music.init()
       music.setGenre(selectedGenre)
       music.setBassVolumeMult(bassVolume)
       music.setPadVolumeMult(padVolume)
       music.setMelodyVolumeMult(melodyVolume)
-      // Start Tone.js audio context (browser requires user gesture for audio)
+      music.start()
+      setStarted(true)
+    } else {
+      // Restart: just resume Tone's context
       try {
         const { default: Tone } = await import('tone')
         await Tone.start()
       } catch {}
-      music.start()
-      setStarted(true)
-    } else {
       music.setGenre(selectedGenre)
       music.setBassVolumeMult(bassVolume)
       music.setPadVolumeMult(padVolume)
