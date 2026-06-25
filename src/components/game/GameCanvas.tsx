@@ -41,7 +41,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v3.1.0'  // Tone.js real piano, SFX limiter, better boing/jump sounds
+  const GAME_VERSION = 'v3.2.0'  // Juri character, splash art, cat purr on streak
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -53,6 +53,10 @@ export default function GameCanvas({
   const frameCountRef = useRef<number>(0)
   const sizeRef = useRef<{ w: number; h: number; dpr: number }>({ w: 0, h: 0, dpr: 1 })
   const lastTtsMilestone = useRef<number>(0)
+
+  // Cat purr on streak — plays when character is on a combo streak
+  const lastPurrRef = useRef<number>(0)
+  const playPurrRef = useRef<(() => void) | null>(null)
 
   // Refs that mirror props/state so the animation loop can read live values
   // without having those values in its useEffect deps (which would cause the
@@ -90,6 +94,7 @@ export default function GameCanvas({
   // Weather — snow by default (sub-pixel, optimized)
   const [weather, setWeather] = useState<'none' | 'snow' | 'rain'>('snow')
   const [showSettings, setShowSettings] = useState<boolean>(false)
+  const [showSplash, setShowSplash] = useState<boolean>(true)  // splash on launch
   const [currentSubtitle, setCurrentSubtitle] = useState<string>('')
   const [subtitleTimer, setSubtitleTimer] = useState<number>(0)
   // Use fixed defaults to avoid hydration mismatch — localStorage loaded in useEffect after mount
@@ -270,6 +275,16 @@ export default function GameCanvas({
     sfxRef.current.resume()
     sfxRef.current.play(action)
   }, [])
+
+  // Play cat purr (for streaks) — loads the cat_purr.ogg sample and plays it softly
+  useEffect(() => {
+    playPurrRef.current = () => {
+      if (!sfxEnabledRef.current) return
+      const audio = new Audio('/sfx/cat_purr.ogg')
+      audio.volume = 0.3  // soft background purr
+      audio.play().catch(() => {})
+    }
+  }, [])
   useEffect(() => {
     if (ttsProcessorRef.current) {
       ttsProcessorRef.current.setReverbAmount(ttsReverb)
@@ -432,6 +447,9 @@ export default function GameCanvas({
     }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
+    // Auto-hide splash after 2.5 seconds
+    const splashTimer = setTimeout(() => setShowSplash(false), 2500)
+    return () => clearTimeout(splashTimer)
   }, [])
 
   // ---- Update character type when selection changes (does NOT recreate state) ----
@@ -593,7 +611,15 @@ export default function GameCanvas({
         onJump: (kind) => {
           music.onJump(kind)
           playSfx('jump')
-          if (navigator.vibrate) navigator.vibrate(12)  // tiny vibration on every jump
+          if (navigator.vibrate) navigator.vibrate(12)
+          // Play cat purr when on a streak (combo >= 5) — happy creature sound
+          if (state.combo >= 5 && state.combo % 5 === 0) {
+            const now = Date.now()
+            if (now - lastPurrRef.current > 5000) {  // at most once per 5s
+              lastPurrRef.current = now
+              playPurrRef.current?.()
+            }
+          }
           setCombo(state.combo)
           setMusicStep(state.musicStep)
           setActiveLayers([...music.getActiveLayers()])
@@ -603,7 +629,14 @@ export default function GameCanvas({
         onJumpMulti: (count, kind) => {
           music.onJumpMulti(count, kind)
           if (kind === 'progress') playSfx('jump')
-          if (navigator.vibrate) navigator.vibrate(12)  // tiny vibration on every jump
+          if (navigator.vibrate) navigator.vibrate(12)
+          if (state.combo >= 5 && state.combo % 5 === 0) {
+            const now = Date.now()
+            if (now - lastPurrRef.current > 5000) {
+              lastPurrRef.current = now
+              playPurrRef.current?.()
+            }
+          }
           setCombo(state.combo)
           setMusicStep(state.musicStep)
           setActiveLayers([...music.getActiveLayers()])
@@ -788,6 +821,82 @@ export default function GameCanvas({
         ref={canvasRef}
         className="absolute inset-0 w-full h-full block"
       />
+
+      {/* Splash art — shows on launch, auto-dismisses after 2.5s */}
+      <AnimatePresence>
+        {showSplash && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            className="absolute inset-0 flex flex-col items-center justify-center"
+            style={{
+              zIndex: 100,
+              background: 'radial-gradient(ellipse at center, #1a0a2e 0%, #0a0515 100%)',
+            }}
+            onClick={() => setShowSplash(false)}
+          >
+            {/* Animated glow behind text */}
+            <motion.div
+              animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.6, 0.3] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="absolute"
+              style={{
+                width: '60%',
+                height: '40%',
+                background: 'radial-gradient(ellipse, rgba(236,72,153,0.4) 0%, transparent 70%)',
+                filter: 'blur(20px)',
+              }}
+            />
+            {/* "ARASH GAMES" — company name */}
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3, duration: 0.6 }}
+              className="text-center"
+            >
+              <div
+                className="text-[10px] uppercase tracking-[0.4em] text-white/50 font-bold mb-2 text-outline-sm"
+                style={{ fontFamily: "'Nunito', system-ui, sans-serif" }}
+              >
+                Presents
+              </div>
+              <div
+                className="text-4xl sm:text-5xl font-black text-outline-sm"
+                style={{
+                  fontFamily: "'Baloo 2', system-ui, sans-serif",
+                  background: 'linear-gradient(135deg, #fff 0%, #f9a8d4 50%, #c020a0 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                  textShadow: '0 0 40px rgba(236,72,153,0.5)',
+                }}
+              >
+                ARASH GAMES
+              </div>
+            </motion.div>
+            {/* Loading bar */}
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: '60%' }}
+              transition={{ duration: 2, ease: 'easeInOut' }}
+              className="h-0.5 mt-8 rounded-full"
+              style={{
+                background: 'linear-gradient(90deg, transparent, #ec4899, transparent)',
+              }}
+            />
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1 }}
+              className="text-[8px] uppercase tracking-[0.3em] text-white/30 mt-3 text-outline-sm"
+            >
+              Tap to continue
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Version number — always visible, top center */}
       <div

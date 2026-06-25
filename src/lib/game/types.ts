@@ -2,7 +2,7 @@
 
 export type GamePhase = 'menu' | 'playing' | 'paused' | 'gameover'
 
-export type CharacterType = 'pip' | 'pixel' | 'mochi' | 'yuki' | 'kuro' | 'bongo' | 'popcat' | 'neon' | 'blob3d' | 'cat3d' | 'spark' | 'mochi2'
+export type CharacterType = 'pip' | 'pixel' | 'mochi' | 'yuki' | 'kuro' | 'bongo' | 'popcat' | 'neon' | 'blob3d' | 'cat3d' | 'spark' | 'mochi2' | 'juri'
 
 export const CHARACTER_NAMES: Record<CharacterType, string> = {
   pip: 'Pip',
@@ -17,6 +17,7 @@ export const CHARACTER_NAMES: Record<CharacterType, string> = {
   cat3d: 'Cat3D',
   spark: 'Spark',
   mochi2: 'Mochi2',
+  juri: 'Juri',
 }
 
 export const CHARACTER_DESCRIPTIONS: Record<CharacterType, string> = {
@@ -32,6 +33,7 @@ export const CHARACTER_DESCRIPTIONS: Record<CharacterType, string> = {
   cat3d: 'A fully 3D cat with depth and shading. Rendered in real-time.',
   spark: 'A living energy serpent. Flowing, luminous, alive.',
   mochi2: 'The cutest cloud-fox ever. Huge sparkly eyes, fluffy tail.',
+  juri: 'Juri Han — the spider from Street Fighters 6. Sadistic and deadly.',
 }
 
 /** Whether a character uses the 3D engine */

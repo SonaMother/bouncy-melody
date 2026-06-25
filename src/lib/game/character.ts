@@ -18,6 +18,7 @@ import { is3DCharacter } from './types'
 import { draw3DCharacter } from './character3d-render'
 import { drawLumina } from './character-lumina'
 import { drawMochi2 } from './character-mochi2'
+import { drawJuri } from './character-juri'
 
 export function drawCharacter(ctx: CanvasRenderingContext2D, c: CharacterState, time: number) {
   // 3D characters use a separate rendering engine
@@ -35,6 +36,12 @@ export function drawCharacter(ctx: CanvasRenderingContext2D, c: CharacterState, 
   // Mochi2 cloud-fox
   if (c.type === 'mochi2') {
     drawMochi2(ctx, c, time)
+    return
+  }
+
+  // Juri Han (Street Fighter 6 inspired)
+  if (c.type === 'juri') {
+    drawJuri(ctx, c, time)
     return
   }
 
