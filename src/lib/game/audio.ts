@@ -24,6 +24,7 @@ import {
   getScaleTonesInRange,
 } from './music-theory'
 import { MelodyEngineV2 } from './melody-engine-v2'
+import { HammondOrgan } from './hammond-organ'
 
 // Default volumes (overridden by genre config)
 const VOL = {
@@ -65,6 +66,12 @@ export class MusicEngine {
   // ---- Angelic high pad (chord tones in higher register — the "pad" layer) ----
   private angelVoices: { osc: OscillatorNode; gain: GainNode; tremoloLfo: OscillatorNode; tremoloGain: GainNode; vibratoLfo: OscillatorNode; vibratoGain: GainNode }[] = []
   private angelTargetFreqs: number[] = []
+
+  // ---- REAL Hammond organ (replaces oscillator pad when loaded) ----
+  private hammond: HammondOrgan | null = null
+  private hammondEnabled = false
+  private hammondReady = false
+  private hammondLastChord: ChordDef | null = null
 
   // ---- Music state ----
   private progressionEngine: ProgressionEngine
@@ -378,8 +385,60 @@ export class MusicEngine {
       voice.osc.frequency.setValueAtTime(voice.osc.frequency.value, t)
       voice.osc.frequency.exponentialRampToValueAtTime(newFreq, t + 1.0)
     }
+
+    // If Hammond organ is ready, play the chord on it (REAL Hammond samples!)
+    // This replaces the oscillator pad sound with actual drawbar organ samples.
+    if (this.hammondReady && this.hammond) {
+      // Play chord tones on the Hammond organ (root, third, fifth, octave)
+      const hammondTones = CHORDS[chord.type]
+      for (const tone of hammondTones) {
+        this.hammond.playNote(chord.root + tone, 2.0)
+      }
+      // Also play the root one octave lower for bass warmth
+      this.hammond.playNote(chord.root - 12, 2.0)
+    }
+
     this.padCurrentChord = chord
   }
+
+  /** Enable the real Hammond organ for the pad layer. */
+  enableHammond(enabled: boolean) {
+    this.hammondEnabled = enabled
+    if (enabled && !this.hammond) {
+      this.hammond = new HammondOrgan()
+      this.hammond.setEnabled(true)
+      this.hammond.setVolume(0.12)  // quiet — pad should sit under melody/bass
+      // Check if it becomes ready
+      const checkReady = setInterval(() => {
+        if (this.hammond?.isReady()) {
+          this.hammondReady = true
+          clearInterval(checkReady)
+          // Mute the oscillator pad since Hammond is taking over
+          if (this.ctx) {
+            const t = this.ctx.currentTime
+            for (const voice of this.padVoices) {
+              voice.gain.gain.linearRampToValueAtTime(0, t + 0.5)
+            }
+            for (const voice of this.angelVoices) {
+              voice.gain.gain.linearRampToValueAtTime(0, t + 0.5)
+            }
+          }
+        }
+      }, 500)
+      // Stop checking after 30 seconds
+      setTimeout(() => clearInterval(checkReady), 30000)
+    } else if (!enabled && this.hammond) {
+      this.hammond.setEnabled(false)
+      this.hammondReady = false
+      // Restore oscillator pad
+      if (this.ctx) {
+        const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
+        this.setPadVolume(config.padVolume)
+      }
+    }
+  }
+
+  isHammondReady() { return this.hammondReady }
 
   // ---- Main game event: jump ----
 

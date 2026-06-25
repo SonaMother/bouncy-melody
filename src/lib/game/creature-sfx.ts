@@ -13,25 +13,24 @@ export type SfxAction = 'jump' | 'land' | 'boost' | 'break' | 'bouncy' | 'gameov
 
 // Real sound samples per action. Multiple variants per action for variety.
 // These are loaded from /public/sfx/*.ogg
-// - voice_*.ogg: real cute character voices (CC0 from Freesound) — anime/cartoon style
-// - jump/bounce/pop: real game SFX (from open-source game repos)
-// - cat_purr: real cat purr
 //
-// IMPORTANT: "weee" sounds are ONLY for boost (high jumps), not normal jumps.
-// Normal jumps use cute giggles/yays. High jumps (boost) get the "weee" sounds.
+// IMPORTANT: The ONLY voice sample is voice_wee_1 (cute "weee") which plays
+// ONLY on boost (high jump platforms). All other events use real game SFX
+// (jump/bounce/pop sounds) + procedural formant synthesis as fallback.
+// (User rejected all other downloaded voice samples as "not cute" / "screaming males")
 const SAMPLE_MAP: Record<SfxAction, string[]> = {
-  // Jump — cute happy voices (giggle/yay/yeah) + game jump sounds (NO "weee" here!)
-  jump: ['voice_giggle.ogg', 'voice_yay_3.ogg', 'voice_yeah.ogg', 'jump_2.ogg', 'voice_yay_1.ogg', 'voice_laugh_1.ogg'],
+  // Jump — real game jump sounds + procedural synth (NO voice samples)
+  jump: ['jump_1.ogg', 'jump_2.ogg', 'jump_3.ogg'],
   // Land — pop sounds (soft landing impact)
   land: ['pop_1.ogg', 'pop_2.ogg', 'pop_3.ogg'],
-  // Boost — "weee" sounds ONLY here (high jumps!). Cute anime/cartoon wee + game jump
-  boost: ['voice_wee_1.ogg', 'voice_wee_3.ogg', 'voice_wee_4.ogg', 'voice_wee_5.ogg', 'jump_3.ogg'],
-  // Break — cute sad voices (falling down) — NOT male groans, NOT laughter
-  break: ['voice_aww_3.ogg', 'voice_aww_4.ogg', 'pop_2.ogg'],
-  // Bouncy — real bounce sounds + happy voice
-  bouncy: ['bounce_1.ogg', 'bounce_2.ogg', 'voice_yay_2.ogg', 'jump_1.ogg'],
-  // Game over — sad/melancholy (NOT laughter!) — cute girl "aww" + sigh + cat purr
-  gameover: ['voice_sad_1.ogg', 'voice_sigh_1.ogg', 'cat_purr.ogg'],
+  // Boost — the ONE cute "weee" voice + game jump sounds (HIGH JUMPS ONLY)
+  boost: ['voice_wee_1.ogg', 'jump_3.ogg', 'jump_1.ogg'],
+  // Break — pop sounds (no voices — user rejected them)
+  break: ['pop_2.ogg', 'pop_3.ogg', 'pop_1.ogg'],
+  // Bouncy — real bounce sounds
+  bouncy: ['bounce_1.ogg', 'bounce_2.ogg', 'jump_2.ogg'],
+  // Game over — cat purr (melancholy, no laughter, no bad voices)
+  gameover: ['cat_purr.ogg'],
 }
 
 // Procedural fallback presets (used while samples load or if loading fails)

@@ -41,7 +41,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v2.5.0'  // cute anime voices, pad fixed, LFO richer, no start clip
+  const GAME_VERSION = 'v2.6.0'  // REAL Hammond organ wired in, only cute weee for boost
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -684,10 +684,12 @@ export default function GameCanvas({
     if (!started) {
       await music.init()
       music.setGenre(selectedGenre)
+      music.enableHammond(true)  // Enable real Hammond organ for pad
       music.start()
       setStarted(true)
     } else {
       music.setGenre(selectedGenre)
+      music.enableHammond(true)
       music.reset()
       music.start()
     }
