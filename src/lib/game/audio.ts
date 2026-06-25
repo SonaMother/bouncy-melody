@@ -24,7 +24,8 @@ import {
   getScaleTonesInRange,
 } from './music-theory'
 import { MelodyEngineV2 } from './melody-engine-v2'
-import { HammondOrgan } from './hammond-organ'
+// Hammond Soundfont removed — it sounded like a boring whistle and was too loud.
+// Using additive synthesis Hammond instead (9 drawbar sine waves).
 
 // Default volumes (overridden by genre config)
 const VOL = {
@@ -66,12 +67,7 @@ export class MusicEngine {
   // ---- Angelic high pad (chord tones in higher register — the "pad" layer) ----
   private angelVoices: { osc: OscillatorNode; gain: GainNode; tremoloLfo: OscillatorNode; tremoloGain: GainNode; vibratoLfo: OscillatorNode; vibratoGain: GainNode }[] = []
   private angelTargetFreqs: number[] = []
-
-  // ---- REAL Hammond organ (replaces oscillator pad when loaded) ----
-  private hammond: HammondOrgan | null = null
-  private hammondEnabled = false
-  private hammondReady = false
-  private hammondLastChord: ChordDef | null = null
+  // Hammond organ removed — using oscillator pad with strong Leslie/phaser instead
 
   // ---- Music state ----
   private progressionEngine: ProgressionEngine
@@ -314,36 +310,31 @@ export class MusicEngine {
     osc.start()
 
     // Tremolo LFO (amplitude modulation) — Leslie rotary speaker effect
-    // SLOW: 1.5-2.5 Hz (was 5-6 Hz which was too fast/artificial).
-    // Real Leslie speakers rotate at ~1.5 Hz (slow) to ~5.5 Hz (fast chorale).
-    // We use slow speed for a gentle, breathing swirl.
+    // SLOW: 1.2-2.0 Hz with STRONG depth (40%) for noticeable swirl
     const tremoloLfo = ctx.createOscillator()
     tremoloLfo.type = 'sine'
-    tremoloLfo.frequency.value = 1.5 + (phaseOffset % 3) * 0.3  // 1.5-2.1 Hz, varies per voice
+    tremoloLfo.frequency.value = 1.2 + (phaseOffset % 3) * 0.3  // 1.2-1.8 Hz
     const tremoloGain = ctx.createGain()
-    tremoloGain.gain.value = 0.20  // 20% amplitude modulation — subtle swirl
-    // Offset phase so voices don't sync — use delay for true phase offset
+    tremoloGain.gain.value = 0.40  // 40% amplitude modulation — STRONG swirl
     const tremoloPhase = ctx.createDelay(1.0)
-    tremoloPhase.delayTime.value = (phaseOffset * 0.13) % 1.0
+    tremoloPhase.delayTime.value = (phaseOffset * 0.17) % 1.0
     tremoloLfo.connect(tremoloPhase)
     tremoloPhase.connect(tremoloGain)
-    tremoloGain.connect(gain.gain)  // modulate the gain
+    tremoloGain.connect(gain.gain)
     tremoloLfo.start()
 
-    // Vibrato LFO (pitch modulation) — Doppler effect of rotating speaker
-    // MUCH SLOWER than tremolo: 0.5-0.9 Hz (was 4.5 Hz which synced with tremolo).
-    // Different frequency from tremolo creates rich, complex modulation instead
-    // of artificial single-speed wobble.
+    // Vibrato LFO (pitch modulation) — Doppler effect
+    // MUCH slower than tremolo: 0.4-0.7 Hz, STRONG depth (8 cents)
     const vibratoLfo = ctx.createOscillator()
     vibratoLfo.type = 'sine'
-    vibratoLfo.frequency.value = 0.5 + (phaseOffset % 4) * 0.15  // 0.5-0.95 Hz — much slower than tremolo
+    vibratoLfo.frequency.value = 0.4 + (phaseOffset % 4) * 0.12  // 0.4-0.76 Hz
     const vibratoGain = ctx.createGain()
-    vibratoGain.gain.value = 4  // 4 cents — subtle pitch wobble
+    vibratoGain.gain.value = 8  // 8 cents — noticeable pitch wobble
     const vibratoPhase = ctx.createDelay(2.0)
-    vibratoPhase.delayTime.value = (phaseOffset * 0.23) % 2.0
+    vibratoPhase.delayTime.value = (phaseOffset * 0.29) % 2.0
     vibratoLfo.connect(vibratoPhase)
     vibratoPhase.connect(vibratoGain)
-    vibratoGain.connect(osc.frequency)  // modulate the pitch
+    vibratoGain.connect(osc.frequency)
     vibratoLfo.start()
 
     return { osc, gain, tremoloLfo, tremoloGain, vibratoLfo, vibratoGain }
@@ -386,59 +377,10 @@ export class MusicEngine {
       voice.osc.frequency.exponentialRampToValueAtTime(newFreq, t + 1.0)
     }
 
-    // If Hammond organ is ready, play the chord on it (REAL Hammond samples!)
-    // This replaces the oscillator pad sound with actual drawbar organ samples.
-    if (this.hammondReady && this.hammond) {
-      // Play chord tones on the Hammond organ (root, third, fifth, octave)
-      const hammondTones = CHORDS[chord.type]
-      for (const tone of hammondTones) {
-        this.hammond.playNote(chord.root + tone, 2.0)
-      }
-      // Also play the root one octave lower for bass warmth
-      this.hammond.playNote(chord.root - 12, 2.0)
-    }
-
     this.padCurrentChord = chord
   }
 
-  /** Enable the real Hammond organ for the pad layer. */
-  enableHammond(enabled: boolean) {
-    this.hammondEnabled = enabled
-    if (enabled && !this.hammond) {
-      this.hammond = new HammondOrgan()
-      this.hammond.setEnabled(true)
-      this.hammond.setVolume(0.12)  // quiet — pad should sit under melody/bass
-      // Check if it becomes ready
-      const checkReady = setInterval(() => {
-        if (this.hammond?.isReady()) {
-          this.hammondReady = true
-          clearInterval(checkReady)
-          // Mute the oscillator pad since Hammond is taking over
-          if (this.ctx) {
-            const t = this.ctx.currentTime
-            for (const voice of this.padVoices) {
-              voice.gain.gain.linearRampToValueAtTime(0, t + 0.5)
-            }
-            for (const voice of this.angelVoices) {
-              voice.gain.gain.linearRampToValueAtTime(0, t + 0.5)
-            }
-          }
-        }
-      }, 500)
-      // Stop checking after 30 seconds
-      setTimeout(() => clearInterval(checkReady), 30000)
-    } else if (!enabled && this.hammond) {
-      this.hammond.setEnabled(false)
-      this.hammondReady = false
-      // Restore oscillator pad
-      if (this.ctx) {
-        const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
-        this.setPadVolume(config.padVolume)
-      }
-    }
-  }
-
-  isHammondReady() { return this.hammondReady }
+  // Hammond organ methods removed — using oscillator pad with Leslie/phaser.
 
   // ---- Main game event: jump ----
 
@@ -991,18 +933,21 @@ export class MusicEngine {
 
   private scheduleBassNote(midi: number, time: number, duration: number) {
     if (!this.ctx || !this.masterGain) return
+    // Use genre config bass volume, NOT hardcoded VOL.bass
+    const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
+    const bassVol = config.bassVolume * 0.9
     const freq = midiToFreq(midi)
     const osc = this.ctx.createOscillator()
-    osc.type = 'sine'
+    osc.type = config.bassOscType
     osc.frequency.value = freq
 
     const filter = this.ctx.createBiquadFilter()
     filter.type = 'lowpass'
-    filter.frequency.value = 400
+    filter.frequency.value = 600
 
     const amp = this.ctx.createGain()
     amp.gain.setValueAtTime(0, time)
-    amp.gain.linearRampToValueAtTime(VOL.bass * 0.9, time + 0.06)
+    amp.gain.linearRampToValueAtTime(bassVol, time + 0.06)
     amp.gain.exponentialRampToValueAtTime(0.001, time + duration)
 
     osc.connect(filter)
@@ -1015,7 +960,9 @@ export class MusicEngine {
   /** Reset for a new game. */
   reset() {
     this.resetState()
-    this.setPadVolume(VOL.pad)
+    // Use genre config volume, NOT the hardcoded VOL.pad
+    const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
+    this.setPadVolume(config.padVolume)
   }
 
   // ---- Accessors ----

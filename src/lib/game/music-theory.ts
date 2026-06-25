@@ -310,9 +310,9 @@ export const GENRE_CONFIGS: Record<MusicGenre, GenreConfig> = {
     masterFilterFreq: 5200,
     reverbAmount: 0.45,
     delayAmount: 0.35,
-    padVolume: 0.05,  // much lower — was too loud relative to everything
-    bassVolume: 0.50,  // louder bass (was 0.42)
-    melodyVolume: 0.28,  // louder melody (was 0.20)
+    padVolume: 0.025, // very quiet — pad sits under everything
+    bassVolume: 0.58,  // very loud bass
+    melodyVolume: 0.35,  // very loud melody
     chordStabVolume: 0.08,
     melodyOscType: 'sine',
     bassOscType: 'sine',
@@ -324,9 +324,9 @@ export const GENRE_CONFIGS: Record<MusicGenre, GenreConfig> = {
     masterFilterFreq: 3800,     // darker
     reverbAmount: 0.65,         // more reverb — spacious
     delayAmount: 0.5,           // more delay — echoes
-    padVolume: 0.06,            // much lower
-    bassVolume: 0.45,  // louder bass (was 0.38)
-    melodyVolume: 0.25,  // louder melody (was 0.17)
+    padVolume: 0.03,            // very quiet
+    bassVolume: 0.52,  // very loud bass
+    melodyVolume: 0.32,  // very loud melody
     chordStabVolume: 0.06,
     melodyOscType: 'triangle',  // softer, more mysterious
     bassOscType: 'sine',
@@ -338,9 +338,9 @@ export const GENRE_CONFIGS: Record<MusicGenre, GenreConfig> = {
     masterFilterFreq: 8000,     // bright — lets the sawtooth shine
     reverbAmount: 0.25,         // tighter, less wash
     delayAmount: 0.28,          // dotted-eighth delay for that 80s feel
-    padVolume: 0.05,           // much lower
-    bassVolume: 0.55,           // louder driving bass (was 0.48)
-    melodyVolume: 0.28,  // louder melody (was 0.20)
+    padVolume: 0.025,           // very quiet
+    bassVolume: 0.62,           // very loud driving bass
+    melodyVolume: 0.35,  // very loud melody
     chordStabVolume: 0.10,
     melodyOscType: 'sawtooth',  // bright synth lead
     bassOscType: 'square',      // punchy synth bass

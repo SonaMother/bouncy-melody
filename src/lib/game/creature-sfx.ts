@@ -81,7 +81,7 @@ export class CreatureSfxEngine {
   private masterGain: GainNode | null = null
   private queues: Record<SfxAction, NonRepeatingQueue>
   private enabled = true
-  private volume = 0.7
+  private volume = 0.35  // lowered — was 0.7, pop/jump sounds were extremely loud
   private sampleCache: Map<string, AudioBuffer> = new Map()
   private samplesLoading: Set<string> = new Set()
 
