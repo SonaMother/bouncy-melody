@@ -41,7 +41,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v3.5.0'  // fix crash, volume 0% bug, RMS normalize, piano latency
+  const GAME_VERSION = 'v3.6.0'  // restore original volumes — bass was 3x too loud
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -87,10 +87,10 @@ export default function GameCanvas({
   // SFX settings — creature sounds ON by default
   const [sfxEnabled, setSfxEnabled] = useState<boolean>(true)
   const [sfxVolume, setSfxVolume] = useState<number>(0.35)
-  // Separate music layer volumes (multipliers on top of genre config)
-  const [bassVolume, setBassVolume] = useState<number>(0.8)
-  const [padVolume, setPadVolume] = useState<number>(0.5)
-  const [melodyVolume, setMelodyVolume] = useState<number>(0.8)
+  // Separate music layer volumes (1.0 = original volume, 0 = mute)
+  const [bassVolume, setBassVolume] = useState<number>(1.0)
+  const [padVolume, setPadVolume] = useState<number>(1.0)
+  const [melodyVolume, setMelodyVolume] = useState<number>(1.0)
   // Weather — snow by default (sub-pixel, optimized)
   const [weather, setWeather] = useState<'none' | 'snow' | 'rain'>('snow')
   const [showSettings, setShowSettings] = useState<boolean>(false)

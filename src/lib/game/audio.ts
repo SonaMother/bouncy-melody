@@ -273,29 +273,25 @@ export class MusicEngine {
 
   /** Set layer volume multipliers (0-1, multiplies with genre config volumes). */
   setBassVolumeMult(v: number) {
-    // Scale 0-1 to 0-2 so user can boost above default if desired
-    this.bassVolumeMult = v * 2
+    this.bassVolumeMult = v  // 0-1, no boost
   }
   setPadVolumeMult(v: number) {
-    this.padVolumeMult = v * 2  // scale 0-1 to 0-2
-    // Apply immediately to pad voices
+    this.padVolumeMult = v  // 0-1, no boost
     if (this.ctx) {
       const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
       this.setPadVolume(config.padVolume * this.padVolumeMult)
     }
   }
   setMelodyVolumeMult(v: number) {
-    this.melodyVolumeMult = v * 2  // scale 0-1 to 0-2
-    // Update piano volume if using Tone.js
+    this.melodyVolumeMult = v  // 0-1, no boost
     if (this.piano && this.pianoReady) {
-      // Tone.js uses dB. 0 = unity, -6 = half, -12 = quarter
       const db = v > 0 ? 20 * Math.log10(v) : -60
       this.piano.volume.value = db
     }
   }
-  getBassVolumeMult() { return this.bassVolumeMult / 2 }
-  getPadVolumeMult() { return this.padVolumeMult / 2 }
-  getMelodyVolumeMult() { return this.melodyVolumeMult / 2 }
+  getBassVolumeMult() { return this.bassVolumeMult }
+  getPadVolumeMult() { return this.padVolumeMult }
+  getMelodyVolumeMult() { return this.melodyVolumeMult }
 
   start() {
     if (!this.ctx || this.running) return
@@ -480,14 +476,10 @@ export class MusicEngine {
   private setPadVolume(v: number) {
     if (!this.ctx) return
     const t = this.ctx.currentTime
-    // Hammond pad volume — ramp the voice gain.
-    // The drawbar oscillators sum into this gain, so it controls overall pad level.
-    // Scale up the effective volume — padVolume 0.008 was too quiet to hear the
-    // effect of slider changes. Multiply by 3 so the slider range is useful.
-    const effectiveVol = v * 3
+    // Direct volume control — no extra scaling (was ×3 which caused issues)
     for (const voice of this.padVoices) {
       voice.gain.gain.cancelScheduledValues(t)
-      voice.gain.gain.linearRampToValueAtTime(effectiveVol, t + 0.3)
+      voice.gain.gain.linearRampToValueAtTime(v, t + 0.3)
     }
   }
 
