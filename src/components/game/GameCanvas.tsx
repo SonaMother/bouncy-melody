@@ -41,7 +41,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v3.2.0'  // Juri character, splash art, cat purr on streak
+  const GAME_VERSION = 'v3.3.0'  // pad volume fix, stereo pad, Juri fix, piano boost, SFX fixes
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)

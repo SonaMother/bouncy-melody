@@ -19,16 +19,17 @@ export type SfxAction = 'jump' | 'land' | 'boost' | 'break' | 'bouncy' | 'gameov
 // (jump/bounce/pop sounds) + procedural formant synthesis as fallback.
 // (User rejected all other downloaded voice samples as "not cute" / "screaming males")
 const SAMPLE_MAP: Record<SfxAction, string[]> = {
-  // Jump — pop sounds (soft platform hit) — NO bad jump sounds
-  jump: ['pop_1.ogg', 'pop_2.ogg'],
-  // Land — pop sounds (soft landing impact)
-  land: ['pop_1.ogg', 'pop_2.ogg'],
-  // Boost — "weee" sounds (HIGH JUMPS ONLY) + spring/boing
+  // Jump — NO sounds here (use procedural synth — subtle landing sound only)
+  jump: [],
+  // Land — NO pop sounds (those are for destroyable platforms only).
+  // Land uses procedural synth for a subtle soft thud.
+  land: [],
+  // Boost — "weee" sounds (HIGH JUMPS ONLY) + spring
   boost: ['voice_wee_1.ogg', 'voice_wee_3.ogg', 'voice_wee_4.ogg', 'voice_wee_5.ogg', 'spring_1.ogg'],
-  // Break — pop sounds
-  break: ['pop_2.ogg', 'pop_1.ogg'],
-  // Bouncy — real boing/spring sounds for trampoline platforms
-  bouncy: ['boing_1.ogg', 'boing_2.ogg', 'spring_1.ogg', 'bounce_1.ogg'],
+  // Break — pop sounds (ONLY for destroyable platforms!)
+  break: ['pop_1.ogg', 'pop_2.ogg'],
+  // Bouncy — only boing_2 is good (user said boing_1 and bounce_1 are bad)
+  bouncy: ['boing_2.ogg'],
   // Game over — procedural synth (no samples)
   gameover: [],
 }

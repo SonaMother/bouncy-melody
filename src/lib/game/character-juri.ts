@@ -1,22 +1,18 @@
 // Juri Han character — inspired by Street Fighter 6 design.
 // A stylized cute-game adaptation: chibi proportions, signature purple/pink,
-// ox-horn hairstyle, eye patch, spider motif. Not a realistic portrait.
+// ox-horn hairstyle, eye patch, spider motif.
 
 import type { CharacterState } from './types'
 
 export function drawJuri(ctx: CanvasRenderingContext2D, c: CharacterState, time: number) {
-  const x = c.x
-  const y = c.y
-  const r = Math.max(c.w, c.h) * 0.5  // derived radius from width/height
-  const t = time * 0.001
-
-  // Squash/stretch from velocity
-  const squash = c.vy < 0 ? 0.88 : 1.08
-  const stretch = c.vy < 0 ? 1.12 : 0.92
-
   ctx.save()
-  ctx.translate(x, y)
-  ctx.scale(squash, stretch)
+  ctx.translate(c.x, c.y)
+  ctx.rotate(c.rotation)
+  ctx.scale(c.squashX, c.squashY)
+
+  const w = c.w, h = c.h
+  const r = Math.min(w, h) * 0.5  // use min for consistent sizing
+  const t = time * 0.001
 
   // ---- Shadow under feet ----
   ctx.fillStyle = 'rgba(0,0,0,0.2)'

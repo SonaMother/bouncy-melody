@@ -190,8 +190,8 @@ export class MusicEngine {
         },
       }).toDestination()
 
-      // Set initial volume (Tone.js uses dB, -12dB = ~0.25 linear)
-      this.piano.volume.value = -12
+      // Set initial volume (Tone.js uses dB). 0dB = unity, boost for melody audibility
+      this.piano.volume.value = 0  // unity — full volume
     } catch (e) {
       console.warn('Piano init failed, using synth melody', e)
       this.pianoLoading = false
@@ -385,9 +385,29 @@ export class MusicEngine {
     const gain = ctx.createGain()
     gain.gain.value = 0
 
-    // Connect main oscillator to gain → masterGain ONLY (no reverb bus!)
+    // STEREO panner — each voice gets a unique pan position for wide stereo image.
+    // Voices alternate left/right based on phaseOffset for a wide, immersive pad.
+    const panner = ctx.createStereoPanner()
+    panner.pan.value = (phaseOffset % 3 === 0) ? -0.6 : (phaseOffset % 3 === 1) ? 0.6 : 0
+
+    // Auto-pan LFO — slowly moves the pan for a living, breathing stereo effect.
+    // Different speed from tremolo/vibrato for rich, complex modulation.
+    const panLfo = ctx.createOscillator()
+    panLfo.type = 'sine'
+    panLfo.frequency.value = 0.2 + (phaseOffset % 3) * 0.08  // 0.2-0.36 Hz — very slow
+    const panLfoGain = ctx.createGain()
+    panLfoGain.gain.value = 0.4  // ±0.4 pan sweep around base position
+    const panPhase = ctx.createDelay(3.0)
+    panPhase.delayTime.value = (phaseOffset * 0.37) % 3.0
+    panLfo.connect(panPhase)
+    panPhase.connect(panLfoGain)
+    panLfoGain.connect(panner.pan)
+    panLfo.start()
+
+    // Connect: osc → gain → panner → masterGain
     osc.connect(gain)
-    gain.connect(this.masterGain!)
+    gain.connect(panner)
+    panner.connect(this.masterGain!)
     osc.start()
 
     // Create 8 additional drawbar oscillators (harmonics 2-9)
@@ -439,10 +459,14 @@ export class MusicEngine {
   private setPadVolume(v: number) {
     if (!this.ctx) return
     const t = this.ctx.currentTime
-    // Hammond pad volume (only one layer now — angel pad removed)
+    // Hammond pad volume — ramp the voice gain.
+    // The drawbar oscillators sum into this gain, so it controls overall pad level.
+    // Scale up the effective volume — padVolume 0.008 was too quiet to hear the
+    // effect of slider changes. Multiply by 3 so the slider range is useful.
+    const effectiveVol = v * 3
     for (const voice of this.padVoices) {
       voice.gain.gain.cancelScheduledValues(t)
-      voice.gain.gain.linearRampToValueAtTime(v, t + 1.2)
+      voice.gain.gain.linearRampToValueAtTime(effectiveVol, t + 0.3)
     }
   }
 
