@@ -310,7 +310,7 @@ export const GENRE_CONFIGS: Record<MusicGenre, GenreConfig> = {
     masterFilterFreq: 5200,
     reverbAmount: 0.45,
     delayAmount: 0.35,
-    padVolume: 0.025, // very quiet — pad sits under everything
+    padVolume: 0.008, // extremely quiet — pad is just background texture
     bassVolume: 0.58,  // very loud bass
     melodyVolume: 0.35,  // very loud melody
     chordStabVolume: 0.08,
@@ -324,7 +324,7 @@ export const GENRE_CONFIGS: Record<MusicGenre, GenreConfig> = {
     masterFilterFreq: 3800,     // darker
     reverbAmount: 0.65,         // more reverb — spacious
     delayAmount: 0.5,           // more delay — echoes
-    padVolume: 0.03,            // very quiet
+    padVolume: 0.01,            // extremely quiet
     bassVolume: 0.52,  // very loud bass
     melodyVolume: 0.32,  // very loud melody
     chordStabVolume: 0.06,
@@ -338,7 +338,7 @@ export const GENRE_CONFIGS: Record<MusicGenre, GenreConfig> = {
     masterFilterFreq: 8000,     // bright — lets the sawtooth shine
     reverbAmount: 0.25,         // tighter, less wash
     delayAmount: 0.28,          // dotted-eighth delay for that 80s feel
-    padVolume: 0.025,           // very quiet
+    padVolume: 0.008,           // extremely quiet
     bassVolume: 0.62,           // very loud driving bass
     melodyVolume: 0.35,  // very loud melody
     chordStabVolume: 0.10,

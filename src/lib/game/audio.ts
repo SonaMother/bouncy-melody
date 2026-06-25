@@ -24,8 +24,9 @@ import {
   getScaleTonesInRange,
 } from './music-theory'
 import { MelodyEngineV2 } from './melody-engine-v2'
-// Hammond Soundfont removed — it sounded like a boring whistle and was too loud.
-// Using additive synthesis Hammond instead (9 drawbar sine waves).
+import { SplendidGrandPiano } from 'smplr'
+// Real sampled grand piano (SplendidGrandPiano) for melody notes.
+// Fetches real piano samples from CDN. Falls back to synth if not loaded.
 
 // Default volumes (overridden by genre config)
 const VOL = {
@@ -70,6 +71,17 @@ export class MusicEngine {
   // Angel pad REMOVED — was doubling volume and sounding bad
   private angelVoices: any[] = []
   private angelTargetFreqs: number[] = []
+
+  // ---- Real sampled grand piano (for melody notes) ----
+  private piano: any = null
+  private pianoReady = false
+  private pianoLoading = false
+  private pianoEnabled = true  // on by default
+
+  // ---- Layer volume multipliers (set from UI, multiply with genre config) ----
+  private bassVolumeMult = 0.8
+  private padVolumeMult = 0.5
+  private melodyVolumeMult = 0.8
 
   // ---- Music state ----
   private progressionEngine: ProgressionEngine
@@ -146,8 +158,32 @@ export class MusicEngine {
 
       this.started = true
       this.startPad()
+      // Load real piano samples in background (for melody)
+      this.initPiano()
     } catch (e) {
       console.warn('MusicEngine init failed', e)
+    }
+  }
+
+  /** Initialize real sampled grand piano (loads from CDN in background). */
+  private initPiano() {
+    if (this.pianoLoading || this.piano || !this.ctx || !this.pianoEnabled) return
+    this.pianoLoading = true
+    try {
+      this.piano = SplendidGrandPiano(this.ctx, { decayTime: 1.5 })
+      // Connect piano output to master gain
+      this.piano.output.connect(this.masterGain!)
+      this.piano.ready.then(() => {
+        this.pianoReady = true
+        this.pianoLoading = false
+        console.log('Real piano loaded — melody will use sampled grand piano')
+      }).catch((e: any) => {
+        console.warn('Piano load failed, using synth melody', e)
+        this.pianoLoading = false
+      })
+    } catch (e) {
+      console.warn('Piano init failed', e)
+      this.pianoLoading = false
     }
   }
 
@@ -199,8 +235,8 @@ export class MusicEngine {
     if (this.delayBus && this.ctx) {
       this.delayBus.gain.linearRampToValueAtTime(config.delayAmount, this.ctx.currentTime + 0.5)
     }
-    // Update pad volume
-    this.setPadVolume(config.padVolume)
+    // Update pad volume (with user multiplier)
+    this.setPadVolume(config.padVolume * this.padVolumeMult)
   }
 
   getGenre(): MusicGenre {
@@ -216,16 +252,61 @@ export class MusicEngine {
     return this.useMelodyV2
   }
 
+  /** Set layer volume multipliers (0-1, multiplies with genre config volumes). */
+  setBassVolumeMult(v: number) {
+    this.bassVolumeMult = v
+  }
+  setPadVolumeMult(v: number) {
+    this.padVolumeMult = v
+    // Apply immediately to pad voices
+    if (this.ctx) {
+      const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
+      this.setPadVolume(config.padVolume * this.padVolumeMult)
+    }
+  }
+  setMelodyVolumeMult(v: number) {
+    this.melodyVolumeMult = v
+  }
+  getBassVolumeMult() { return this.bassVolumeMult }
+  getPadVolumeMult() { return this.padVolumeMult }
+  getMelodyVolumeMult() { return this.melodyVolumeMult }
+
   start() {
     if (!this.ctx || this.running) return
+    // Resume context if it was suspended (after stop())
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume().catch(() => {})
+    }
     this.running = true
     this.resetState()
     const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
-    this.setPadVolume(config.padVolume)
+    // Restore master gain (was faded to 0 on stop)
+    if (this.ctx && this.masterGain) {
+      const t = this.ctx.currentTime
+      this.masterGain.gain.cancelScheduledValues(t)
+      this.masterGain.gain.setValueAtTime(0, t)
+      this.masterGain.gain.linearRampToValueAtTime(this.muted ? 0 : 0.7, t + 2.0)
+    }
+    this.setPadVolume(config.padVolume * this.padVolumeMult)
   }
 
   stop() {
     this.running = false
+    // Actually STOP all audio — pad oscillators were keeping sound alive after exit
+    if (this.ctx) {
+      const t = this.ctx.currentTime
+      // Fade out master gain quickly to avoid clicks
+      this.masterGain?.gain.cancelScheduledValues(t)
+      this.masterGain?.gain.setValueAtTime(this.masterGain.gain.value, t)
+      this.masterGain?.gain.linearRampToValueAtTime(0, t + 0.3)
+      // Mute pad voices immediately
+      for (const voice of this.padVoices) {
+        voice.gain.gain.cancelScheduledValues(t)
+        voice.gain.gain.setValueAtTime(0, t)
+      }
+    }
+    // Suspend the audio context to fully stop processing
+    this.ctx?.suspend().catch(() => {})
   }
 
   /** Reset musical state to the tonic of the starting key. */
@@ -301,7 +382,7 @@ export class MusicEngine {
       drawbarOsc.type = 'sine'
       drawbarOsc.frequency.value = fundamentalFreq * harmonic
       const drawbarGain = ctx.createGain()
-      drawbarGain.gain.value = drawbarVol * 0.12  // scaled down — 9 osc summing
+      drawbarGain.gain.value = drawbarVol * 0.06  // very low — 9 osc summing, keep quiet
       drawbarOsc.connect(drawbarGain)
       drawbarGain.connect(gain)
       drawbarOsc.start()
@@ -659,6 +740,23 @@ export class MusicEngine {
   private playMelodyVoice(midi: number, volume: number, time?: number) {
     if (!this.ctx || !this.masterGain || !this.reverbBus || !this.delayBus) return
     const t = time ?? this.ctx.currentTime
+
+    // If real piano is loaded, use it for melody (real sampled grand piano!)
+    if (this.pianoReady && this.piano && this.pianoEnabled) {
+      try {
+        const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
+        this.piano.start({
+          note: midi,
+          time: t,
+          duration: 1.2,
+          velocity: Math.round(volume * config.melodyVolume * 100),
+        })
+        return
+      } catch {
+        // Fall through to synth if piano fails
+      }
+    }
+
     const freq = midiToFreq(midi)
     const genre = this.progressionEngine.getGenre()
     const config = GENRE_CONFIGS[genre]
@@ -693,7 +791,7 @@ export class MusicEngine {
 
     // Amp envelope: fast attack, medium decay, long release
     const amp = this.ctx.createGain()
-    const peak = config.melodyVolume * volume
+    const peak = config.melodyVolume * volume * this.melodyVolumeMult
     amp.gain.setValueAtTime(0, t)
     amp.gain.linearRampToValueAtTime(peak, t + 0.012)        // 12ms attack
     amp.gain.exponentialRampToValueAtTime(peak * 0.5, t + 0.35) // decay to sustain
@@ -732,7 +830,7 @@ export class MusicEngine {
     g2.gain.value = 0.3
 
     const amp = this.ctx.createGain()
-    const peak = config.bassVolume * volume
+    const peak = config.bassVolume * volume * this.bassVolumeMult
     amp.gain.setValueAtTime(0, t)
     amp.gain.linearRampToValueAtTime(peak, t + 0.04)
     amp.gain.exponentialRampToValueAtTime(0.001, t + 0.7)

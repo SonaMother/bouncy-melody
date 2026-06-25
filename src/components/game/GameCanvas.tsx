@@ -41,7 +41,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v2.9.0'  // fix out-of-tune vibrato, quiet drawbars, no cat purr
+  const GAME_VERSION = 'v3.0.0'  // real piano, audio stop fix, layer volume controls, pad quieter
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -82,7 +82,11 @@ export default function GameCanvas({
   const [ttsVolume, setTtsVolume] = useState<number>(1.0)
   // SFX settings — creature sounds ON by default
   const [sfxEnabled, setSfxEnabled] = useState<boolean>(true)
-  const [sfxVolume, setSfxVolume] = useState<number>(0.7)
+  const [sfxVolume, setSfxVolume] = useState<number>(0.35)
+  // Separate music layer volumes (multipliers on top of genre config)
+  const [bassVolume, setBassVolume] = useState<number>(0.8)
+  const [padVolume, setPadVolume] = useState<number>(0.5)
+  const [melodyVolume, setMelodyVolume] = useState<number>(0.8)
   // Weather — snow by default (sub-pixel, optimized)
   const [weather, setWeather] = useState<'none' | 'snow' | 'rain'>('snow')
   const [showSettings, setShowSettings] = useState<boolean>(false)
@@ -221,6 +225,19 @@ export default function GameCanvas({
   useEffect(() => { ttsVolumeRef.current = ttsVolume }, [ttsVolume])
   useEffect(() => { sfxEnabledRef.current = sfxEnabled }, [sfxEnabled])
   useEffect(() => { sfxVolumeRef.current = sfxVolume }, [sfxVolume])
+  // Apply layer volume multipliers to music engine
+  useEffect(() => {
+    if (musicRef.current) {
+      musicRef.current.setBassVolumeMult(bassVolume)
+      musicRef.current.setPadVolumeMult(padVolume)
+      musicRef.current.setMelodyVolumeMult(melodyVolume)
+    }
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('bouncy-bass-vol', String(bassVolume))
+      localStorage.setItem('bouncy-pad-vol', String(padVolume))
+      localStorage.setItem('bouncy-melody-vol', String(melodyVolume))
+    }
+  }, [bassVolume, padVolume, melodyVolume])
   useEffect(() => {
     if (sfxRef.current) {
       sfxRef.current.setEnabled(sfxEnabled)
@@ -380,6 +397,31 @@ export default function GameCanvas({
       if (!isNaN(sv) && sv >= 0 && sv <= 1) {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setSfxVolume(sv)
+      }
+    }
+    // Load music layer volumes
+    const storedBassVol = localStorage.getItem('bouncy-bass-vol')
+    if (storedBassVol !== null) {
+      const v = parseFloat(storedBassVol)
+      if (!isNaN(v) && v >= 0 && v <= 1) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setBassVolume(v)
+      }
+    }
+    const storedPadVol = localStorage.getItem('bouncy-pad-vol')
+    if (storedPadVol !== null) {
+      const v = parseFloat(storedPadVol)
+      if (!isNaN(v) && v >= 0 && v <= 1) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setPadVolume(v)
+      }
+    }
+    const storedMelodyVol = localStorage.getItem('bouncy-melody-vol')
+    if (storedMelodyVol !== null) {
+      const v = parseFloat(storedMelodyVol)
+      if (!isNaN(v) && v >= 0 && v <= 1) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setMelodyVolume(v)
       }
     }
     // Load weather setting
@@ -1157,6 +1199,43 @@ export default function GameCanvas({
                     </div>
                     {/* Divider */}
                     <div className="border-t border-white/10 my-1"></div>
+                    {/* Music layer volumes */}
+                    <div className="text-[8px] uppercase tracking-wider text-white/40 font-bold text-outline-sm mb-1">Music Layers</div>
+                    {/* Bass Volume */}
+                    <div>
+                      <div className="flex justify-between items-center mb-0.5">
+                        <span className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm">Bass</span>
+                        <span className="text-[8px] text-white/80 font-mono text-outline-sm">{Math.round(bassVolume * 100)}%</span>
+                      </div>
+                      <input type="range" min={0} max={1} step={0.05} value={bassVolume}
+                        onChange={(e) => setBassVolume(parseFloat(e.target.value))}
+                        className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                        style={{ background: `linear-gradient(to right, hsl(200, 70%, 50%) ${bassVolume * 100}%, rgba(255,255,255,0.1) ${bassVolume * 100}%)` }} />
+                    </div>
+                    {/* Melody Volume */}
+                    <div>
+                      <div className="flex justify-between items-center mb-0.5">
+                        <span className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm">Melody (Piano)</span>
+                        <span className="text-[8px] text-white/80 font-mono text-outline-sm">{Math.round(melodyVolume * 100)}%</span>
+                      </div>
+                      <input type="range" min={0} max={1} step={0.05} value={melodyVolume}
+                        onChange={(e) => setMelodyVolume(parseFloat(e.target.value))}
+                        className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                        style={{ background: `linear-gradient(to right, hsl(45, 70%, 50%) ${melodyVolume * 100}%, rgba(255,255,255,0.1) ${melodyVolume * 100}%)` }} />
+                    </div>
+                    {/* Pad Volume */}
+                    <div>
+                      <div className="flex justify-between items-center mb-0.5">
+                        <span className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm">Pad (Organ)</span>
+                        <span className="text-[8px] text-white/80 font-mono text-outline-sm">{Math.round(padVolume * 100)}%</span>
+                      </div>
+                      <input type="range" min={0} max={1} step={0.05} value={padVolume}
+                        onChange={(e) => setPadVolume(parseFloat(e.target.value))}
+                        className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                        style={{ background: `linear-gradient(to right, hsl(280, 70%, 50%) ${padVolume * 100}%, rgba(255,255,255,0.1) ${padVolume * 100}%)` }} />
+                    </div>
+                    {/* Divider */}
+                    <div className="border-t border-white/10 my-1"></div>
                     {/* Weather */}
                     <div>
                       <div className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm mb-0.5">Weather</div>
@@ -1221,6 +1300,8 @@ export default function GameCanvas({
                     state.phase = 'menu'
                     setPhase('menu')
                     onPhaseChange?.('menu')
+                    // STOP music when quitting to menu
+                    musicRef.current?.stop()
                   }
                 }}
                 className="px-8 py-3 rounded-full font-bold text-white/90 bg-white/10 border border-white/20 text-outline-sm"
@@ -1310,6 +1391,8 @@ export default function GameCanvas({
                   state.phase = 'menu'
                   setPhase('menu')
                   onPhaseChange?.('menu')
+                  // STOP music when going back to menu
+                  musicRef.current?.stop()
                 }
               }}
               className="mt-3 text-white/70 hover:text-white text-sm font-semibold text-outline-sm"
