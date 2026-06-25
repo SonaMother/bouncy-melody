@@ -144,11 +144,40 @@ export class CreatureSfxEngine {
       if (!resp.ok) return
       const arr = await resp.arrayBuffer()
       const buf = await this.ctx.decodeAudioData(arr)
+      // RMS-based normalization: analyze the sample's loudness and normalize
+      // to a target RMS level so all SFX play at equal perceived loudness.
+      this.normalizeBuffer(buf)
       this.sampleCache.set(file, buf)
     } catch (e) {
       // Sample failed to load — will use procedural fallback
     } finally {
       this.samplesLoading.delete(file)
+    }
+  }
+
+  /**
+   * RMS-based loudness normalization.
+   * Analyzes the buffer's RMS (root mean square) level, then scales it
+   * to a target RMS of -12dB (0.25 linear). This ensures all SFX are
+   * equally loud regardless of their original recording level.
+   */
+  private normalizeBuffer(buf: AudioBuffer) {
+    const targetRMS = 0.12  // target RMS level (~-18dB, moderate)
+    for (let ch = 0; ch < buf.numberOfChannels; ch++) {
+      const data = buf.getChannelData(ch)
+      // Calculate RMS
+      let sumSquares = 0
+      for (let i = 0; i < data.length; i++) {
+        sumSquares += data[i] * data[i]
+      }
+      const rms = Math.sqrt(sumSquares / data.length)
+      if (rms < 0.001) return  // skip silence
+      // Calculate gain to reach target RMS
+      const gain = Math.min(10, targetRMS / rms)  // cap at 10x to avoid amplifying noise
+      // Apply gain
+      for (let i = 0; i < data.length; i++) {
+        data[i] = Math.max(-1, Math.min(1, data[i] * gain))  // clamp to prevent clipping
+      }
     }
   }
 

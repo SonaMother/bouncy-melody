@@ -41,7 +41,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v3.4.0'  // Tone.js shared context, piano sync fix, volume apply on start
+  const GAME_VERSION = 'v3.5.0'  // fix crash, volume 0% bug, RMS normalize, piano latency
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)

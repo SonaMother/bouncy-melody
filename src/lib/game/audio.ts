@@ -412,15 +412,15 @@ export class MusicEngine {
     panLfoGain.connect(panner.pan)
     panLfo.start()
 
-    // Connect: osc → gain → panner → masterGain
+    // Connect: osc → gain (volume) → tremoloGain (tremolo) → panner → masterGain
+    // Tremolo is a SEPARATE gain node in the signal path (not added to gain.gain).
+    // This way, when volume gain = 0, the output is 0 × tremolo = 0 (truly silent).
     osc.connect(gain)
     gain.connect(panner)
     panner.connect(this.masterGain!)
     osc.start()
 
     // Create 8 additional drawbar oscillators (harmonics 2-9)
-    // These sum into the main gain, creating the Hammond timbre.
-    // Scaled LOW because 9 oscillators summing together gets loud fast.
     for (let d = 1; d < MusicEngine.DRAWBAR_HARMONICS.length; d++) {
       const harmonic = MusicEngine.DRAWBAR_HARMONICS[d]
       const drawbarVol = MusicEngine.DRAWBAR_VOLUMES[d]
@@ -428,32 +428,45 @@ export class MusicEngine {
       drawbarOsc.type = 'sine'
       drawbarOsc.frequency.value = fundamentalFreq * harmonic
       const drawbarGain = ctx.createGain()
-      drawbarGain.gain.value = drawbarVol * 0.06  // very low — 9 osc summing, keep quiet
+      drawbarGain.gain.value = drawbarVol * 0.06
       drawbarOsc.connect(drawbarGain)
       drawbarGain.connect(gain)
       drawbarOsc.start()
     }
 
-    // Leslie tremolo LFO (amplitude modulation) — STRONG, slow swirl
+    // Leslie tremolo — modulates a SEPARATE gain node in the signal path.
+    // LFO output (±1) scaled to 0.225, added to base 0.775 = swings 0.55↔1.0
+    // This is MULTIPLICATIVE (gain × tremolo), so volume=0 → silence.
+    // OLD BUG: tremoloGain connected to gain.gain directly, which ADDED
+    // the LFO to the base volume, making 0% still audible.
+    const tremoloNode = ctx.createGain()
+    tremoloNode.gain.value = 0.775  // center: (1.0 + 0.55) / 2
     const tremoloLfo = ctx.createOscillator()
     tremoloLfo.type = 'sine'
-    tremoloLfo.frequency.value = 1.2 + (phaseOffset % 3) * 0.3  // 1.2-1.8 Hz
-    const tremoloGain = ctx.createGain()
-    tremoloGain.gain.value = 0.45  // 45% — STRONG, noticeable
+    tremoloLfo.frequency.value = 1.2 + (phaseOffset % 3) * 0.3
+    const tremoloDepth = ctx.createGain()
+    tremoloDepth.gain.value = 0.225
     const tremoloPhase = ctx.createDelay(1.0)
     tremoloPhase.delayTime.value = (phaseOffset * 0.17) % 1.0
     tremoloLfo.connect(tremoloPhase)
-    tremoloPhase.connect(tremoloGain)
-    tremoloGain.connect(gain.gain)
+    tremoloPhase.connect(tremoloDepth)
+    tremoloDepth.connect(tremoloNode.gain)
     tremoloLfo.start()
+    // Insert tremoloNode into the signal chain (between gain and panner)
+    gain.disconnect()
+    gain.connect(tremoloNode)
+    tremoloNode.connect(panner)
+    const tremoloGain = tremoloNode  // alias for return type compatibility
 
-    // Leslie vibrato LFO (pitch modulation) — slow, SUBTLE depth
-    // Too much vibrato makes chords sound out of tune. Keep it gentle.
+    // STEREO vibrato — LEFT and RIGHT channels get different vibrato rates.
+    // We can't truly split one oscillator into L/R with different vibrato,
+    // but we CAN create the illusion by using the auto-pan + a complex vibrato.
+    // Left vibrato (slower, 4 cents)
     const vibratoLfo = ctx.createOscillator()
     vibratoLfo.type = 'sine'
     vibratoLfo.frequency.value = 0.4 + (phaseOffset % 4) * 0.12  // 0.4-0.76 Hz
     const vibratoGain = ctx.createGain()
-    vibratoGain.gain.value = 3  // 3 cents — subtle, won't sound out of tune
+    vibratoGain.gain.value = 4  // 4 cents
     const vibratoPhase = ctx.createDelay(2.0)
     vibratoPhase.delayTime.value = (phaseOffset * 0.29) % 2.0
     vibratoLfo.connect(vibratoPhase)
@@ -797,10 +810,9 @@ export class MusicEngine {
         const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
         const noteName = midiToNoteName(midi)
         const velocity = Math.min(1, volume * config.melodyVolume * this.melodyVolumeMult * 2)
-        // Use Tone.now() for immediate playback (realtime, no delay).
-        // Passing `t` (game ctx time) caused sync issues because Tone.js
-        // schedules on its own transport which may differ from the raw ctx time.
-        this.piano.triggerAttackRelease(noteName, 0.8, Tone.now(), velocity)
+        // Use 'immediate' for 0-latency realtime playback (no scheduling delay).
+        // Tone.now() still uses the transport which can have lookahead delay.
+        this.piano.triggerAttackRelease(noteName, 0.5, 'immediate', velocity)
         return
       } catch {
         // Fall through to synth if piano fails

@@ -87,6 +87,8 @@ function getCharacterBaseHue(type: CharacterType): number {
     case 'cat3d':  return 20  // orange
     case 'spark':  return 180 // cyan
     case 'mochi2': return 280 // lilac
+    case 'juri':   return 300 // purple-pink (Juri's signature color)
+    default:       return 340 // fallback pink
   }
 }
 
@@ -1941,12 +1943,14 @@ export function addTrailPoint(c: CharacterState, time: number) {
 export function drawCharacterTrail(ctx: CanvasRenderingContext2D, c: CharacterState) {
   for (let i = 0; i < c.trail.length; i++) {
     const t = c.trail[i]
+    // Safety: ensure hue is a valid number (prevents "Invalid color" crash)
+    const hue = isFinite(t.hue) ? t.hue : 340
     const alpha = (t.life / 0.4) * 0.3 * ((i + 1) / c.trail.length)
     ctx.save()
     ctx.globalAlpha = alpha
     const grad = ctx.createRadialGradient(t.x, t.y, 0, t.x, t.y, t.size)
-    grad.addColorStop(0, `hsl(${t.hue}, 90%, 75%)`)
-    grad.addColorStop(1, `hsla(${t.hue}, 90%, 75%, 0)`)
+    grad.addColorStop(0, `hsl(${hue}, 90%, 75%)`)
+    grad.addColorStop(1, `hsla(${hue}, 90%, 75%, 0)`)
     ctx.fillStyle = grad
     ctx.beginPath()
     ctx.arc(t.x, t.y, t.size, 0, Math.PI * 2)
