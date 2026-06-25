@@ -41,7 +41,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v3.3.0'  // pad volume fix, stereo pad, Juri fix, piano boost, SFX fixes
+  const GAME_VERSION = 'v3.4.0'  // Tone.js shared context, piano sync fix, volume apply on start
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -759,10 +759,17 @@ export default function GameCanvas({
     if (!started) {
       await music.init()
       music.setGenre(selectedGenre)
+      // Apply current volume multipliers AFTER init (pad voices now exist)
+      music.setBassVolumeMult(bassVolume)
+      music.setPadVolumeMult(padVolume)
+      music.setMelodyVolumeMult(melodyVolume)
       music.start()
       setStarted(true)
     } else {
       music.setGenre(selectedGenre)
+      music.setBassVolumeMult(bassVolume)
+      music.setPadVolumeMult(padVolume)
+      music.setMelodyVolumeMult(melodyVolume)
       music.reset()
       music.start()
     }

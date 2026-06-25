@@ -172,8 +172,12 @@ export class MusicEngine {
     if (this.pianoLoading || this.piano || !this.pianoEnabled) return
     this.pianoLoading = true
     try {
+      // CRITICAL: Set Tone.js to use the SAME AudioContext as the game.
+      // This way stop()/start() (which suspend/resume this.ctx) also control
+      // the piano, and the piano routes through the game's master gain.
+      Tone.setContext(this.ctx!)
+
       // Create Tone.js Sampler with 4 sample notes from Salamander Grand Piano CDN
-      // Tone.js auto-pitches all other notes from these 4 reference samples
       this.piano = new Tone.Sampler({
         urls: {
           C4: 'C4.mp3',
@@ -188,10 +192,14 @@ export class MusicEngine {
           this.pianoLoading = false
           console.log('Real piano (Salamander) loaded — melody will use sampled grand piano')
         },
-      }).toDestination()
+      })
 
-      // Set initial volume (Tone.js uses dB). 0dB = unity, boost for melody audibility
-      this.piano.volume.value = 0  // unity — full volume
+      // Connect piano through the game's master gain (so volume sliders work!)
+      // instead of toDestination() which bypasses the game's audio graph.
+      this.piano.connect(this.masterGain!)
+
+      // Set initial volume (0dB = unity, full volume)
+      this.piano.volume.value = 0
     } catch (e) {
       console.warn('Piano init failed, using synth melody', e)
       this.pianoLoading = false
@@ -787,12 +795,12 @@ export class MusicEngine {
     if (this.pianoReady && this.piano && this.pianoEnabled) {
       try {
         const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
-        // Convert MIDI number to note name (Tone.js format: C4, D#4, etc.)
         const noteName = midiToNoteName(midi)
-        // Tone.js velocity is 0-1
         const velocity = Math.min(1, volume * config.melodyVolume * this.melodyVolumeMult * 2)
-        // triggerAttackRelease(note, duration, time, velocity)
-        this.piano.triggerAttackRelease(noteName, 1.2, t, velocity)
+        // Use Tone.now() for immediate playback (realtime, no delay).
+        // Passing `t` (game ctx time) caused sync issues because Tone.js
+        // schedules on its own transport which may differ from the raw ctx time.
+        this.piano.triggerAttackRelease(noteName, 0.8, Tone.now(), velocity)
         return
       } catch {
         // Fall through to synth if piano fails
