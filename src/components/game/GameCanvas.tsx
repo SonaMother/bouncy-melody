@@ -759,10 +759,14 @@ export default function GameCanvas({
     if (!started) {
       await music.init()
       music.setGenre(selectedGenre)
-      // Apply current volume multipliers AFTER init (pad voices now exist)
       music.setBassVolumeMult(bassVolume)
       music.setPadVolumeMult(padVolume)
       music.setMelodyVolumeMult(melodyVolume)
+      // Start Tone.js audio context (browser requires user gesture for audio)
+      try {
+        const { default: Tone } = await import('tone')
+        await Tone.start()
+      } catch {}
       music.start()
       setStarted(true)
     } else {

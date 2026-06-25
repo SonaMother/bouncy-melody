@@ -172,12 +172,9 @@ export class MusicEngine {
     if (this.pianoLoading || this.piano || !this.pianoEnabled) return
     this.pianoLoading = true
     try {
-      // CRITICAL: Set Tone.js to use the SAME AudioContext as the game.
-      // This way stop()/start() (which suspend/resume this.ctx) also control
-      // the piano, and the piano routes through the game's master gain.
-      Tone.setContext(this.ctx!)
-
-      // Create Tone.js Sampler with 4 sample notes from Salamander Grand Piano CDN
+      // DON'T use Tone.setContext — it breaks in Tone.js v15 with raw AudioContext.
+      // Let Tone.js use its own AudioContext. We connect the output to the game's
+      // master gain so volume controls work.
       this.piano = new Tone.Sampler({
         urls: {
           C4: 'C4.mp3',
@@ -192,13 +189,9 @@ export class MusicEngine {
           this.pianoLoading = false
           console.log('Real piano (Salamander) loaded — melody will use sampled grand piano')
         },
-      })
+      }).toDestination()
 
-      // Connect piano through the game's master gain (so volume sliders work!)
-      // instead of toDestination() which bypasses the game's audio graph.
-      this.piano.connect(this.masterGain!)
-
-      // Set initial volume (0dB = unity, full volume)
+      // Set volume (0dB = unity)
       this.piano.volume.value = 0
     } catch (e) {
       console.warn('Piano init failed, using synth melody', e)
