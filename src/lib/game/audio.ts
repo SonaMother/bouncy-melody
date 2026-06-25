@@ -57,17 +57,19 @@ export class MusicEngine {
   private muted = false
   public level = 0
 
-  // ---- Continuous pad voices (always playing) ----
-  // Hammond organ effect: each pad voice has tremolo (amplitude LFO) and
-  // vibrato (pitch LFO) to simulate a Leslie rotary speaker. This makes the
-  // pad less static and more like a living, breathing organ.
+  // ---- Continuous pad: REAL additive Hammond organ synthesis ----
+  // A real Hammond organ uses 9 drawbars (sine waves at harmonic ratios).
+  // Each pad voice = 9 sine oscillators (drawbars) summed together.
+  // Only the pad gets the Leslie effect (tremolo + vibrato). Bass does NOT.
+  // Pad connects ONLY to masterGain (NOT reverb bus — was doubling volume).
+  private static readonly DRAWBAR_HARMONICS = [0.5, 1.5, 1, 2, 3, 4, 5, 6, 8]
+  private static readonly DRAWBAR_VOLUMES = [0.8, 0.6, 0.8, 0.4, 0.2, 0.15, 0.1, 0.08, 0.06]
   private padVoices: { osc: OscillatorNode; gain: GainNode; tremoloLfo: OscillatorNode; tremoloGain: GainNode; vibratoLfo: OscillatorNode; vibratoGain: GainNode }[] = []
   private padTargetFreqs: number[] = []
   private padCurrentChord: ChordDef
-  // ---- Angelic high pad (chord tones in higher register — the "pad" layer) ----
-  private angelVoices: { osc: OscillatorNode; gain: GainNode; tremoloLfo: OscillatorNode; tremoloGain: GainNode; vibratoLfo: OscillatorNode; vibratoGain: GainNode }[] = []
+  // Angel pad REMOVED — was doubling volume and sounding bad
+  private angelVoices: any[] = []
   private angelTargetFreqs: number[] = []
-  // Hammond organ removed — using oscillator pad with strong Leslie/phaser instead
 
   // ---- Music state ----
   private progressionEngine: ProgressionEngine
@@ -243,79 +245,73 @@ export class MusicEngine {
     this.setPadChord(this.currentChord)
   }
 
-  // ---- Continuous bass pad + angelic high pad (with Hammond Leslie effect) ----
+  // ---- Continuous Hammond pad (additive synthesis) ----
 
   private startPad() {
-    if (!this.ctx || !this.masterGain || !this.reverbBus) return
+    if (!this.ctx || !this.masterGain) return
 
-    // BASS PAD: root, fifth, octave in low register (warm harmonic bed)
-    const bassIntervals = [0, 7, 12]
-    for (let i = 0; i < bassIntervals.length; i++) {
-      const interval = bassIntervals[i]
-      const voice = this.createPadVoice(
-        this.currentChord.bassNote + interval,
-        'sine', 1800, 0.7,
-        i  // voice index for LFO phase offset
+    // Create 3 pad voices for the chord (root, fifth, octave in mid register)
+    // Each voice is a Hammond drawbar organ (9 sine harmonics)
+    const padIntervals = [0, 7, 12]
+    for (let i = 0; i < padIntervals.length; i++) {
+      const voice = this.createHammondVoice(
+        this.currentChord.root + padIntervals[i] - 12,  // one octave below chord root
+        i  // phase offset per voice
       )
       this.padVoices.push(voice)
       this.padTargetFreqs.push(voice.osc.frequency.value)
     }
-
-    // ANGELIC HIGH PAD: chord tones (root, third, fifth) in higher register
-    // Plays 2 octaves above the chord root for a shimmering, heavenly layer.
-    const chordTones = CHORDS[this.currentChord.type]
-    for (let i = 0; i < chordTones.length; i++) {
-      const tone = chordTones[i]
-      const voice = this.createPadVoice(
-        this.currentChord.root + tone + 24,
-        'triangle', 3000, 0.5,
-        i + 10  // offset phase so angel voices don't sync with bass voices
-      )
-      this.angelVoices.push(voice)
-      this.angelTargetFreqs.push(voice.osc.frequency.value)
-    }
   }
 
   /**
-   * Create a pad voice with Hammond Leslie effect:
-   * - Tremolo LFO (amplitude modulation) — simulates rotary speaker swirl
-   * - Vibrato LFO (pitch modulation) — simulates Doppler effect of rotating speaker
-   * Each voice gets a unique LFO phase so they don't sync into ugly patterns.
+   * Create a REAL Hammond drawbar organ voice.
+   * 9 sine oscillators at harmonic ratios (drawbars) summed together.
+   * This is how a real Hammond B3 works — additive synthesis.
+   * Only this voice gets the Leslie effect. Bass does NOT.
+   * Connects ONLY to masterGain (no reverb bus — was doubling volume).
    */
-  private createPadVoice(
+  private createHammondVoice(
     midiNote: number,
-    oscType: OscillatorType,
-    filterFreq: number,
-    filterQ: number,
     phaseOffset: number,
   ): { osc: OscillatorNode; gain: GainNode; tremoloLfo: OscillatorNode; tremoloGain: GainNode; vibratoLfo: OscillatorNode; vibratoGain: GainNode } {
     const ctx = this.ctx!
+    const fundamentalFreq = midiToFreq(midiNote)
 
+    // Main oscillator (fundamental) — this is what gets the Leslie vibrato
     const osc = ctx.createOscillator()
-    osc.type = oscType
-    osc.frequency.value = midiToFreq(midiNote)
+    osc.type = 'sine'
+    osc.frequency.value = fundamentalFreq
 
-    const filter = ctx.createBiquadFilter()
-    filter.type = 'lowpass'
-    filter.frequency.value = filterFreq
-    filter.Q.value = filterQ
-
+    // Gain for this voice (controlled by setPadVolume)
     const gain = ctx.createGain()
     gain.gain.value = 0
 
-    osc.connect(filter)
-    filter.connect(gain)
+    // Connect main oscillator to gain → masterGain ONLY (no reverb bus!)
+    osc.connect(gain)
     gain.connect(this.masterGain!)
-    gain.connect(this.reverbBus!)
     osc.start()
 
-    // Tremolo LFO (amplitude modulation) — Leslie rotary speaker effect
-    // SLOW: 1.2-2.0 Hz with STRONG depth (40%) for noticeable swirl
+    // Create 8 additional drawbar oscillators (harmonics 2-9)
+    // These sum into the main gain, creating the Hammond timbre
+    for (let d = 1; d < MusicEngine.DRAWBAR_HARMONICS.length; d++) {
+      const harmonic = MusicEngine.DRAWBAR_HARMONICS[d]
+      const drawbarVol = MusicEngine.DRAWBAR_VOLUMES[d]
+      const drawbarOsc = ctx.createOscillator()
+      drawbarOsc.type = 'sine'
+      drawbarOsc.frequency.value = fundamentalFreq * harmonic
+      const drawbarGain = ctx.createGain()
+      drawbarGain.gain.value = drawbarVol * 0.3  // scaled down so sum isn't too loud
+      drawbarOsc.connect(drawbarGain)
+      drawbarGain.connect(gain)
+      drawbarOsc.start()
+    }
+
+    // Leslie tremolo LFO (amplitude modulation) — STRONG, slow swirl
     const tremoloLfo = ctx.createOscillator()
     tremoloLfo.type = 'sine'
     tremoloLfo.frequency.value = 1.2 + (phaseOffset % 3) * 0.3  // 1.2-1.8 Hz
     const tremoloGain = ctx.createGain()
-    tremoloGain.gain.value = 0.40  // 40% amplitude modulation — STRONG swirl
+    tremoloGain.gain.value = 0.45  // 45% — STRONG, noticeable
     const tremoloPhase = ctx.createDelay(1.0)
     tremoloPhase.delayTime.value = (phaseOffset * 0.17) % 1.0
     tremoloLfo.connect(tremoloPhase)
@@ -323,13 +319,12 @@ export class MusicEngine {
     tremoloGain.connect(gain.gain)
     tremoloLfo.start()
 
-    // Vibrato LFO (pitch modulation) — Doppler effect
-    // MUCH slower than tremolo: 0.4-0.7 Hz, STRONG depth (8 cents)
+    // Leslie vibrato LFO (pitch modulation) — MUCH slower, strong depth
     const vibratoLfo = ctx.createOscillator()
     vibratoLfo.type = 'sine'
     vibratoLfo.frequency.value = 0.4 + (phaseOffset % 4) * 0.12  // 0.4-0.76 Hz
     const vibratoGain = ctx.createGain()
-    vibratoGain.gain.value = 8  // 8 cents — noticeable pitch wobble
+    vibratoGain.gain.value = 10  // 10 cents — noticeable pitch wobble
     const vibratoPhase = ctx.createDelay(2.0)
     vibratoPhase.delayTime.value = (phaseOffset * 0.29) % 2.0
     vibratoLfo.connect(vibratoPhase)
@@ -343,40 +338,25 @@ export class MusicEngine {
   private setPadVolume(v: number) {
     if (!this.ctx) return
     const t = this.ctx.currentTime
-    // Bass pad volume
+    // Hammond pad volume (only one layer now — angel pad removed)
     for (const voice of this.padVoices) {
       voice.gain.gain.cancelScheduledValues(t)
       voice.gain.gain.linearRampToValueAtTime(v, t + 1.2)
-    }
-    // Angelic high pad volume (slightly louder so it's audible as the "pad" layer)
-    for (const voice of this.angelVoices) {
-      voice.gain.gain.cancelScheduledValues(t)
-      voice.gain.gain.linearRampToValueAtTime(v * 0.7, t + 1.2)
     }
   }
 
   private setPadChord(chord: ChordDef) {
     if (!this.ctx) return
     const t = this.ctx.currentTime
-    // Update bass pad (root, fifth, octave)
-    const bassIntervals = [0, 7, 12]
+    // Update Hammond pad (root, fifth, octave)
+    const padIntervals = [0, 7, 12]
     for (let i = 0; i < this.padVoices.length; i++) {
       const voice = this.padVoices[i]
-      const newFreq = midiToFreq(chord.bassNote + bassIntervals[i])
+      const newFreq = midiToFreq(chord.root + padIntervals[i] - 12)
       voice.osc.frequency.cancelScheduledValues(t)
       voice.osc.frequency.setValueAtTime(voice.osc.frequency.value, t)
       voice.osc.frequency.exponentialRampToValueAtTime(newFreq, t + 1.0)
     }
-    // Update angelic pad (chord tones 2 octaves up)
-    const chordTones = CHORDS[chord.type]
-    for (let i = 0; i < this.angelVoices.length && i < chordTones.length; i++) {
-      const voice = this.angelVoices[i]
-      const newFreq = midiToFreq(chord.root + chordTones[i] + 24)
-      voice.osc.frequency.cancelScheduledValues(t)
-      voice.osc.frequency.setValueAtTime(voice.osc.frequency.value, t)
-      voice.osc.frequency.exponentialRampToValueAtTime(newFreq, t + 1.0)
-    }
-
     this.padCurrentChord = chord
   }
 
