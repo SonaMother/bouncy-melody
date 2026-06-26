@@ -567,28 +567,56 @@ export class MusicEngine {
     }
   }
 
-  /** Load a soundfont instrument for melody. Replaces piano when active. */
-  async loadSoundfont(instrumentId: string): Promise<boolean> {
-    if (!this.ctx || !this.melodyGain) return false
+  /** Load a soundfont instrument for a specific channel (melody/bass/pad). */
+  async loadSoundfont(channel: 'melody' | 'bass' | 'pad', instrumentId: string): Promise<boolean> {
+    if (!this.ctx || !this.melodyGain || !this.bassGain || !this.padGain) return false
     if (!this.soundfontManager) {
       this.soundfontManager = new SoundfontManager()
-      this.soundfontManager.setContext(this.ctx, this.melodyGain)
+      this.soundfontManager.setContext(this.ctx, this.melodyGain, this.bassGain, this.padGain)
     }
-    const ok = await this.soundfontManager.loadInstrument(instrumentId)
-    if (ok) {
-      this.useSoundfontForMelody = true
+    const ok = await this.soundfontManager.loadInstrument(channel, instrumentId)
+    if (ok && instrumentId !== '') {
+      if (channel === 'melody') this.useSoundfontForMelody = true
     }
     return ok
   }
 
-  /** Disable soundfont, go back to piano. */
+  /** Set which channel MIDI keyboard controls (for testing). */
+  setMidiActiveChannel(channel: 'melody' | 'bass' | 'pad') {
+    this.soundfontManager?.setActiveChannel(channel)
+  }
+
+  /** Play a note from MIDI keyboard on the active channel. */
+  playMidiNote(midi: number, velocity: number) {
+    // Try soundfont on active channel first
+    if (this.soundfontManager) {
+      const activeCh = this.soundfontManager.getActiveChannel()
+      if (this.soundfontManager.isChannelReady(activeCh)) {
+        this.soundfontManager.playNoteOnActive(midi, velocity)
+        return
+      }
+    }
+    // Fall back to piano
+    if (this.pianoReady && this.piano && this.pianoEnabled) {
+      const noteName = midiToNoteName(midi)
+      this.piano.triggerAttackRelease(noteName, 0.8, undefined, velocity)
+    }
+  }
+
+  /** Disable soundfont for a channel. */
+  disableSoundfontChannel(channel: 'melody' | 'bass' | 'pad') {
+    this.soundfontManager?.loadInstrument(channel, '')
+    if (channel === 'melody') this.useSoundfontForMelody = false
+  }
+
+  /** Disable all soundfonts. */
   disableSoundfont() {
     this.useSoundfontForMelody = false
     this.soundfontManager?.dispose()
     this.soundfontManager = null
   }
 
-  isSoundfontReady() { return this.soundfontManager?.isReady() ?? false }
+  isSoundfontReady() { return this.soundfontManager?.isChannelReady('melody') ?? false }
   isUsingSoundfont() { return this.useSoundfontForMelody }
 
   // ---- Main game event: jump ----
@@ -863,11 +891,11 @@ export class MusicEngine {
     if (!this.ctx || !this.masterGain || !this.reverbBus || !this.delayBus) return
     const t = time ?? this.ctx.currentTime
 
-    // If soundfont is loaded, use it for melody (user-selected instrument)
-    if (this.useSoundfontForMelody && this.soundfontManager?.isReady()) {
+    // If soundfont is loaded for melody, use it
+    if (this.useSoundfontForMelody && this.soundfontManager?.isChannelReady('melody')) {
       const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
       const velocity = Math.min(1, volume * config.melodyVolume)
-      this.soundfontManager.playNote(midi, velocity, 0.5)
+      this.soundfontManager.playNote('melody', midi, velocity, 0.5)
       return
     }
 
