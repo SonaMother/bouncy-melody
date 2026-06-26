@@ -19,6 +19,7 @@ import { draw3DCharacter } from './character3d-render'
 import { drawLumina } from './character-lumina'
 import { drawMochi2 } from './character-mochi2'
 import { drawJuri } from './character-juri'
+import { drawPixelBot } from './character-pixelbot'
 
 export function drawCharacter(ctx: CanvasRenderingContext2D, c: CharacterState, time: number) {
   // 3D characters use a separate rendering engine
@@ -42,6 +43,12 @@ export function drawCharacter(ctx: CanvasRenderingContext2D, c: CharacterState, 
   // Juri Han (Street Fighter 6 inspired)
   if (c.type === 'juri') {
     drawJuri(ctx, c, time)
+    return
+  }
+
+  // PixelBot — pixel-art animated sprite
+  if (c.type === 'pixelbot') {
+    drawPixelBot(ctx, c, time)
     return
   }
 
@@ -88,6 +95,7 @@ function getCharacterBaseHue(type: CharacterType): number {
     case 'spark':  return 180 // cyan
     case 'mochi2': return 280 // lilac
     case 'juri':   return 300 // purple-pink (Juri's signature color)
+    case 'pixelbot': return 210 // blue (robot)
     default:       return 340 // fallback pink
   }
 }

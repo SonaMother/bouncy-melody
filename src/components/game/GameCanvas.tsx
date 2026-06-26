@@ -43,7 +43,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v4.6.0'  // per-channel soundfonts, MIDI channel select, 30+ instruments
+  const GAME_VERSION = 'v4.7.0'  // per-channel soundfonts, PixelBot character, MIDI channel select
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -2027,6 +2027,31 @@ function CharacterPreview({ type }: { type: CharacterType }) {
               <div style={{ position: 'absolute', top: 12, right: 7, width: 3, height: 3, borderRadius: '50%', background: '#c020a0', boxShadow: '0 0 4px #c020a0' }} />
               {/* Smirk */}
               <div style={{ position: 'absolute', top: 19, left: '40%', width: 6, height: 2, borderBottom: '1.5px solid #8a4030', borderRadius: '0 0 50% 50%' }} />
+            </div>
+          </div>
+        )}
+        {type === 'pixelbot' && (
+          <div style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {/* Pixel art robot preview */}
+            <div style={{ position: 'relative', width: 24, height: 28 }}>
+              {/* Antenna */}
+              <div style={{ position: 'absolute', top: -2, left: '50%', transform: 'translateX(-50%)', width: 2, height: 3, background: '#ffdd44' }} />
+              {/* Head */}
+              <div style={{ position: 'absolute', top: 1, left: 3, width: 18, height: 14, background: '#4a90d9', border: '1px solid #1a1a2e', borderRadius: 2 }}>
+                {/* Screen */}
+                <div style={{ position: 'absolute', top: 3, left: 3, width: 12, height: 8, background: '#0a0a1a', borderRadius: 1 }}>
+                  {/* Eyes */}
+                  <div style={{ position: 'absolute', top: 2, left: 2, width: 2, height: 2, background: '#00ff88', boxShadow: '0 0 3px #00ff88' }} />
+                  <div style={{ position: 'absolute', top: 2, right: 2, width: 2, height: 2, background: '#00ff88', boxShadow: '0 0 3px #00ff88' }} />
+                </div>
+              </div>
+              {/* Body */}
+              <div style={{ position: 'absolute', top: 15, left: 4, width: 16, height: 10, background: '#4a90d9', border: '1px solid #1a1a2e', borderRadius: 2 }}>
+                <div style={{ position: 'absolute', top: 3, left: '50%', transform: 'translateX(-50%)', width: 6, height: 4, background: '#2a5a8a', borderRadius: 1 }} />
+              </div>
+              {/* Legs */}
+              <div style={{ position: 'absolute', top: 25, left: 6, width: 3, height: 3, background: '#2a5a8a' }} />
+              <div style={{ position: 'absolute', top: 25, right: 6, width: 3, height: 3, background: '#2a5a8a' }} />
             </div>
           </div>
         )}
