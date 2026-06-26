@@ -282,36 +282,36 @@ export class MusicEngine {
     return this.useMelodyV2
   }
 
-  // ===== CLEAN VOLUME SYSTEM =====
-  // Each layer has a dedicated gain node. Sliders set the gain directly.
-  // No multipliers, no complex chains — just gain.value = slider value.
+  // ===== SIMPLE VOLUME SYSTEM =====
+  // ONE gain node per layer at the FINAL output.
+  // Slider value (0-1) = gain.value directly. That's it.
 
-  /** Set bass volume (0-1). Directly controls bassGain node. */
+  /** Set bass volume (0-1). Sets bassGain.gain.value directly. */
   setBassVolume(v: number) {
     this.bassVolumeMult = v
     if (this.bassGain && this.ctx) {
-      this.bassGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05)
+      this.bassGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.02)
     }
   }
-  /** Set pad volume (0-1). Directly controls pad voice gains. */
+  /** Set pad volume (0-1). Sets each pad voice's output gain directly. */
   setPadVolumeLevel(v: number) {
     this.padVolumeMult = v
     if (this.ctx) {
       const t = this.ctx.currentTime
       for (const voice of this.padVoices) {
-        voice.gain.gain.cancelScheduledValues(t)
-        voice.gain.gain.linearRampToValueAtTime(v * 0.05, t + 0.1)
+        voice.gain.gain.setTargetAtTime(v, t, 0.02)
       }
     }
   }
-  /** Set melody volume (0-1). Controls synth melody gain AND piano volume. */
+  /** Set melody volume (0-1). Sets melodyGain.gain.value directly. */
   setMelodyVolumeLevel(v: number) {
     this.melodyVolumeMult = v
     if (this.melodyGain && this.ctx) {
-      this.melodyGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05)
+      this.melodyGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.02)
     }
+    // Also set piano volume (Tone.js uses dB — but we convert from linear 0-1)
     if (this.piano && this.pianoReady) {
-      this.piano.volume.value = v > 0 ? 20 * Math.log10(v) : -60
+      this.piano.volume.value = v > 0.001 ? 20 * Math.log10(v) : -60
     }
   }
   // Backward-compatible aliases
@@ -506,13 +506,8 @@ export class MusicEngine {
   }
 
   private setPadVolume(v: number) {
-    if (!this.ctx) return
-    const t = this.ctx.currentTime
-    // Direct volume control — no extra scaling (was ×3 which caused issues)
-    for (const voice of this.padVoices) {
-      voice.gain.gain.cancelScheduledValues(t)
-      voice.gain.gain.linearRampToValueAtTime(v, t + 0.3)
-    }
+    // Route through the user-facing volume method so there's ONE control path
+    this.setPadVolumeLevel(v)
   }
 
   private setPadChord(chord: ChordDef) {
@@ -870,7 +865,7 @@ export class MusicEngine {
     // If soundfont is loaded, use it for melody (user-selected instrument)
     if (this.useSoundfontForMelody && this.soundfontManager?.isReady()) {
       const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
-      const velocity = Math.min(1, volume * config.melodyVolume * this.melodyVolumeMult)
+      const velocity = Math.min(1, volume * config.melodyVolume)
       this.soundfontManager.playNote(midi, velocity, 0.5)
       return
     }
@@ -879,7 +874,7 @@ export class MusicEngine {
     if (this.pianoReady && this.piano && this.pianoEnabled) {
       const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
       const noteName = midiToNoteName(midi)
-      const velocity = Math.min(1, volume * config.melodyVolume * this.melodyVolumeMult * 2)
+      const velocity = Math.min(1, volume * config.melodyVolume)
       // Omit time argument = play immediately (Tone.js plays "now")
       // Don't use 'immediate' string — it's invalid in Tone.js v15
       this.piano.triggerAttackRelease(noteName, 0.5, undefined, velocity)
@@ -920,7 +915,7 @@ export class MusicEngine {
 
     // Amp envelope: fast attack, medium decay, long release
     const amp = this.ctx.createGain()
-    const peak = config.melodyVolume * volume * this.melodyVolumeMult
+    const peak = config.melodyVolume * volume
     amp.gain.setValueAtTime(0, t)
     amp.gain.linearRampToValueAtTime(peak, t + 0.012)        // 12ms attack
     amp.gain.exponentialRampToValueAtTime(peak * 0.5, t + 0.35) // decay to sustain
@@ -945,7 +940,7 @@ export class MusicEngine {
     if (this.pianoReady && this.piano && this.pianoEnabled) {
       const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
       const noteName = midiToNoteName(midi)
-      const velocity = Math.min(1, volume * config.bassVolume * this.bassVolumeMult * 0.8)
+      const velocity = Math.min(1, volume * config.bassVolume)
       this.piano.triggerAttackRelease(noteName, 0.6, undefined, velocity)
       return
     }
@@ -969,7 +964,7 @@ export class MusicEngine {
     g2.gain.value = 0.3
 
     const amp = this.ctx.createGain()
-    const peak = config.bassVolume * volume * this.bassVolumeMult
+    const peak = config.bassVolume * volume
     amp.gain.setValueAtTime(0, t)
     amp.gain.linearRampToValueAtTime(peak, t + 0.04)
     amp.gain.exponentialRampToValueAtTime(0.001, t + 0.7)

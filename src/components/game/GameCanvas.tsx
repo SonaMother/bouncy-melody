@@ -43,7 +43,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v4.1.0'  // soundfont selector, MIDI keyboard, multi-tab settings
+  const GAME_VERSION = 'v4.2.0'  // SIMPLE volume (gain nodes only), fix soundfont selection
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -315,19 +315,19 @@ export default function GameCanvas({
 
   // Load a soundfont instrument for melody
   const loadSoundfont = useCallback(async (instrumentId: string) => {
-    if (!musicRef.current) return
+    setSelectedSoundfont(instrumentId)
+    if (typeof window !== 'undefined') localStorage.setItem('bouncy-soundfont', instrumentId)
+    if (!musicRef.current) {
+      // Music not ready yet — will be applied on game start
+      return
+    }
     if (instrumentId === '') {
       musicRef.current.disableSoundfont()
-      setSelectedSoundfont('')
       return
     }
     setSoundfontLoading(true)
-    const ok = await musicRef.current.loadSoundfont(instrumentId)
+    await musicRef.current.loadSoundfont(instrumentId)
     setSoundfontLoading(false)
-    if (ok) {
-      setSelectedSoundfont(instrumentId)
-      if (typeof window !== 'undefined') localStorage.setItem('bouncy-soundfont', instrumentId)
-    }
   }, [])
   useEffect(() => {
     if (ttsProcessorRef.current) {
