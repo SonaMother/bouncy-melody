@@ -20,6 +20,9 @@ import { drawLumina } from './character-lumina'
 import { drawMochi2 } from './character-mochi2'
 import { drawJuri } from './character-juri'
 import { drawPixelBot } from './character-pixelbot'
+import { drawRagdoll } from './character-ragdoll'
+import { drawGeometric } from './character-geometric'
+import { drawShadow } from './character-shadow'
 
 export function drawCharacter(ctx: CanvasRenderingContext2D, c: CharacterState, time: number) {
   // 3D characters use a separate rendering engine
@@ -49,6 +52,24 @@ export function drawCharacter(ctx: CanvasRenderingContext2D, c: CharacterState, 
   // PixelBot — pixel-art animated sprite
   if (c.type === 'pixelbot') {
     drawPixelBot(ctx, c, time)
+    return
+  }
+
+  // Ragdoll — spring-physics body parts
+  if (c.type === 'ragdoll') {
+    drawRagdoll(ctx, c, time)
+    return
+  }
+
+  // Geometric — vector art with rotating shapes
+  if (c.type === 'geometric') {
+    drawGeometric(ctx, c, time)
+    return
+  }
+
+  // Shadow — silhouette with glowing eyes
+  if (c.type === 'shadow') {
+    drawShadow(ctx, c, time)
     return
   }
 
@@ -96,6 +117,9 @@ function getCharacterBaseHue(type: CharacterType): number {
     case 'mochi2': return 280 // lilac
     case 'juri':   return 300 // purple-pink (Juri's signature color)
     case 'pixelbot': return 210 // blue (robot)
+    case 'ragdoll': return 25 // orange (ragdoll)
+    case 'geometric': return 170 // teal (geometric)
+    case 'shadow': return 270 // purple (shadow)
     default:       return 340 // fallback pink
   }
 }

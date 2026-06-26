@@ -2,7 +2,7 @@
 
 export type GamePhase = 'menu' | 'playing' | 'paused' | 'gameover'
 
-export type CharacterType = 'pip' | 'pixel' | 'mochi' | 'yuki' | 'kuro' | 'bongo' | 'popcat' | 'neon' | 'blob3d' | 'cat3d' | 'spark' | 'mochi2' | 'juri' | 'pixelbot'
+export type CharacterType = 'pip' | 'pixel' | 'mochi' | 'yuki' | 'kuro' | 'bongo' | 'popcat' | 'neon' | 'blob3d' | 'cat3d' | 'spark' | 'mochi2' | 'juri' | 'pixelbot' | 'ragdoll' | 'geometric' | 'shadow'
 
 export const CHARACTER_NAMES: Record<CharacterType, string> = {
   pip: 'Pip',
@@ -19,6 +19,9 @@ export const CHARACTER_NAMES: Record<CharacterType, string> = {
   mochi2: 'Mochi2',
   juri: 'Juri',
   pixelbot: 'PixelBot',
+  ragdoll: 'Ragdoll',
+  geometric: 'Geo',
+  shadow: 'Shadow',
 }
 
 export const CHARACTER_DESCRIPTIONS: Record<CharacterType, string> = {
@@ -36,6 +39,9 @@ export const CHARACTER_DESCRIPTIONS: Record<CharacterType, string> = {
   mochi2: 'The cutest cloud-fox ever. Huge sparkly eyes, fluffy tail.',
   juri: 'Juri Han — the spider from Street Fighters 6. Sadistic and deadly.',
   pixelbot: 'A pixel-art animated robot with frame-based sprite animation.',
+  ragdoll: 'A ragdoll character with spring-physics body parts. Floppy and alive.',
+  geometric: 'A geometric vector character with rotating shapes. Modern indie style.',
+  shadow: 'A mysterious silhouette with glowing eyes. Dark and minimalist.',
 }
 
 /** Whether a character uses the 3D engine */

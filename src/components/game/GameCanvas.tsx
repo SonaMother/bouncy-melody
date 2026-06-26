@@ -43,7 +43,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v4.7.0'  // per-channel soundfonts, PixelBot character, MIDI channel select
+  const GAME_VERSION = 'v5.0.0'  // 4 new characters: PixelBot, Ragdoll, Geometric, Shadow
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -2052,6 +2052,46 @@ function CharacterPreview({ type }: { type: CharacterType }) {
               {/* Legs */}
               <div style={{ position: 'absolute', top: 25, left: 6, width: 3, height: 3, background: '#2a5a8a' }} />
               <div style={{ position: 'absolute', top: 25, right: 6, width: 3, height: 3, background: '#2a5a8a' }} />
+            </div>
+          </div>
+        )}
+        {type === 'ragdoll' && (
+          <div style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ position: 'relative', width: 28, height: 32 }}>
+              {/* Head */}
+              <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 12, height: 12, borderRadius: '50%', background: '#f5d0b0' }}>
+                <div style={{ position: 'absolute', top: 4, left: 2, width: 2, height: 2, borderRadius: '50%', background: '#1a1a2e' }} />
+                <div style={{ position: 'absolute', top: 4, right: 2, width: 2, height: 2, borderRadius: '50%', background: '#1a1a2e' }} />
+              </div>
+              {/* Body */}
+              <div style={{ position: 'absolute', top: 11, left: '50%', transform: 'translateX(-50%)', width: 14, height: 14, borderRadius: '40%', background: '#e87b3a' }} />
+              {/* Arms */}
+              <div style={{ position: 'absolute', top: 12, left: 0, width: 5, height: 5, borderRadius: '50%', background: '#e87b3a' }} />
+              <div style={{ position: 'absolute', top: 12, right: 0, width: 5, height: 5, borderRadius: '50%', background: '#e87b3a' }} />
+              {/* Legs */}
+              <div style={{ position: 'absolute', top: 24, left: 6, width: 5, height: 6, borderRadius: '40%', background: '#e87b3a' }} />
+              <div style={{ position: 'absolute', top: 24, right: 6, width: 5, height: 6, borderRadius: '40%', background: '#e87b3a' }} />
+            </div>
+          </div>
+        )}
+        {type === 'geometric' && (
+          <div style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 24, height: 24, position: 'relative' }}>
+              {/* Hexagon */}
+              <div style={{ width: '100%', height: '100%', clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)', background: '#008877' }} />
+              <div style={{ position: 'absolute', top: '15%', left: '15%', width: '70%', height: '70%', clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)', background: '#00d9c0' }} />
+              {/* Eyes */}
+              <div style={{ position: 'absolute', top: '35%', left: '30%', width: 3, height: 3, borderRadius: '50%', background: '#0a0a1a' }} />
+              <div style={{ position: 'absolute', top: '35%', right: '30%', width: 3, height: 3, borderRadius: '50%', background: '#0a0a1a' }} />
+            </div>
+          </div>
+        )}
+        {type === 'shadow' && (
+          <div style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#0a0a0a', border: '1px solid #aa66ff', boxShadow: '0 0 8px #aa66ff', position: 'relative' }}>
+              {/* Glowing eyes */}
+              <div style={{ position: 'absolute', top: '35%', left: '25%', width: 3, height: 5, borderRadius: '50%', background: '#aa66ff', boxShadow: '0 0 4px #aa66ff' }} />
+              <div style={{ position: 'absolute', top: '35%', right: '25%', width: 3, height: 5, borderRadius: '50%', background: '#aa66ff', boxShadow: '0 0 4px #aa66ff' }} />
             </div>
           </div>
         )}
