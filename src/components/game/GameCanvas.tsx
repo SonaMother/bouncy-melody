@@ -43,7 +43,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v4.4.0'  // revert bass to synth, hard stop all sounds
+  const GAME_VERSION = 'v4.5.0'  // padGain post-proc, sustained bass root, stereo pad fixed
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)

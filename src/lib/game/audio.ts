@@ -88,6 +88,7 @@ export class MusicEngine {
   // Dedicated gain nodes for clean volume control
   private bassGain: GainNode | null = null
   private melodyGain: GainNode | null = null
+  private padGain: GainNode | null = null  // POST-PROCESSING pad volume knob
 
   // Soundfont manager — lets user select different instruments
   private soundfontManager: SoundfontManager | null = null
@@ -173,6 +174,9 @@ export class MusicEngine {
       this.melodyGain = this.ctx.createGain()
       this.melodyGain.gain.value = 1.0
       this.melodyGain.connect(this.masterGain)
+      this.padGain = this.ctx.createGain()
+      this.padGain.gain.value = 1.0
+      this.padGain.connect(this.masterGain)
 
       this.started = true
       this.startPad()
@@ -266,7 +270,7 @@ export class MusicEngine {
       this.delayBus.gain.linearRampToValueAtTime(config.delayAmount, this.ctx.currentTime + 0.5)
     }
     // Update pad volume (with user multiplier)
-    this.setPadVolume(config.padVolume * this.padVolumeMult)
+    this.setPadVolume(config.padVolume)
   }
 
   getGenre(): MusicGenre {
@@ -293,14 +297,12 @@ export class MusicEngine {
       this.bassGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.02)
     }
   }
-  /** Set pad volume (0-1). Stores value and applies to pad voices if ready. */
+  /** Set pad volume (0-1). POST-PROCESSING knob — sets padGain.gain directly.
+   * Nothing else touches padGain, so this always works. */
   setPadVolumeLevel(v: number) {
     this.padVolumeMult = v
-    if (this.ctx && this.padVoices.length > 0) {
-      const t = this.ctx.currentTime
-      for (const voice of this.padVoices) {
-        voice.gain.gain.setTargetAtTime(v, t, 0.02)
-      }
+    if (this.padGain && this.ctx) {
+      this.padGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.02)
     }
   }
   /** Set melody volume (0-1). Stores value and applies to gain node if ready. */
@@ -322,11 +324,8 @@ export class MusicEngine {
     if (this.melodyGain && this.ctx) {
       this.melodyGain.gain.value = this.melodyVolumeMult
     }
-    if (this.padVoices.length > 0 && this.ctx) {
-      const t = this.ctx.currentTime
-      for (const voice of this.padVoices) {
-        voice.gain.gain.setTargetAtTime(this.padVolumeMult, t, 0.02)
-      }
+    if (this.padGain && this.ctx) {
+      this.padGain.gain.value = this.padVolumeMult
     }
     if (this.piano && this.pianoReady) {
       this.piano.volume.value = this.melodyVolumeMult > 0.001 ? 20 * Math.log10(this.melodyVolumeMult) : -60
@@ -356,7 +355,7 @@ export class MusicEngine {
       this.masterGain.gain.setValueAtTime(0, t)
       this.masterGain.gain.linearRampToValueAtTime(this.muted ? 0 : 0.7, t + 2.0)
     }
-    this.setPadVolume(config.padVolume * this.padVolumeMult)
+    this.setPadVolume(config.padVolume)
   }
 
   stop() {
@@ -514,14 +513,14 @@ export class MusicEngine {
     rightVibratoGain.connect(osc.frequency)
     rightVibrato.start()
 
-    // Connect: gain → [left path] and [right path] → masterGain
+    // Connect: gain → [left path] and [right path] → padGain (post-processing volume)
     gain.connect(leftTremolo)
     leftTremolo.connect(leftPanner)
-    leftPanner.connect(this.masterGain!)
+    leftPanner.connect(this.padGain ?? this.masterGain!)
 
     gain.connect(rightTremolo)
     rightTremolo.connect(rightPanner)
-    rightPanner.connect(this.masterGain!)
+    rightPanner.connect(this.padGain ?? this.masterGain!)
 
     osc.connect(gain)
     osc.start()
@@ -531,8 +530,13 @@ export class MusicEngine {
   }
 
   private setPadVolume(v: number) {
-    // Route through the user-facing volume method so there's ONE control path
-    this.setPadVolumeLevel(v)
+    // Sets the INTERNAL voice gain (fixed level). The user's volume is controlled
+    // SEPARATELY via padGain (post-processing). These don't interact.
+    if (!this.ctx) return
+    const t = this.ctx.currentTime
+    for (const voice of this.padVoices) {
+      voice.gain.gain.setTargetAtTime(v, t, 0.1)
+    }
   }
 
   private setPadChord(chord: ChordDef) {
@@ -827,38 +831,10 @@ export class MusicEngine {
       return
     }
 
-    // Lofi/Mystic: walking bass
-    const target = this.currentChord.bassNote
-    let note = this.lastBassNote
-
-    const diff = target - note
-    if (Math.abs(diff) > 2) {
-      const step = Math.sign(diff) * Math.min(3, Math.abs(diff))
-      note += step
-    } else {
-      const tones = CHORDS[this.currentChord.type]
-      const candidates = [target, target + tones[1] - tones[0], target + tones[2] - tones[0]]
-        .map(n => Math.max(BASS_MIN, Math.min(BASS_MAX, n)))
-        .filter(n => !this.recentBassNotes.includes(n))
-
-      if (candidates.length > 0) {
-        note = candidates[Math.floor(Math.random() * candidates.length)]
-      } else {
-        note = target
-      }
-    }
-
-    if (Math.random() < 0.15) {
-      const scale = SCALES[this.currentChord.scale]
-      const passingNote = this.currentChord.bassNote + scale[Math.floor(Math.random() * scale.length)]
-      if (passingNote >= BASS_MIN && passingNote <= BASS_MAX && !this.recentBassNotes.includes(passingNote)) {
-        note = passingNote
-      }
-    }
-
-    note = Math.max(BASS_MIN, Math.min(BASS_MAX, note))
-    this.recentBassNotes.push(note)
-    if (this.recentBassNotes.length > 3) this.recentBassNotes.shift()
+    // Lofi/Mystic: SINGLE SUSTAINED chord root note.
+    // Plays the chord's bass note with full sustain until the next platform
+    // triggers it. No walking, no passing tones — just the root, held.
+    const note = this.currentChord.bassNote
     this.lastBassNote = note
     this.playBassVoice(note, 1.0, time ?? this.ctx!.currentTime)
   }
@@ -985,7 +961,7 @@ export class MusicEngine {
     const peak = config.bassVolume * volume
     amp.gain.setValueAtTime(0, t)
     amp.gain.linearRampToValueAtTime(peak, t + 0.04)
-    amp.gain.exponentialRampToValueAtTime(0.001, t + 0.7)
+    amp.gain.exponentialRampToValueAtTime(0.001, t + 2.0)  // sustained bass (was 0.7)
 
     osc1.connect(filter)
     osc2.connect(g2); g2.connect(filter)
@@ -993,7 +969,7 @@ export class MusicEngine {
     amp.connect(this.bassGain ?? this.masterGain)
 
     osc1.start(t); osc2.start(t)
-    osc1.stop(t + 0.8); osc2.stop(t + 0.8)
+    osc1.stop(t + 2.1); osc2.stop(t + 2.1)  // match sustain duration
   }
 
   private playChordStab(time?: number) {
