@@ -361,20 +361,27 @@ export class MusicEngine {
 
   stop() {
     this.running = false
-    // Actually STOP all audio — pad oscillators were keeping sound alive after exit
+    // HARD STOP — kill everything instantly
     if (this.ctx) {
       const t = this.ctx.currentTime
-      // Fade out master gain quickly to avoid clicks
+      // Set master gain to 0 INSTANTLY (no fade — user wants hard stop)
       this.masterGain?.gain.cancelScheduledValues(t)
-      this.masterGain?.gain.setValueAtTime(this.masterGain.gain.value, t)
-      this.masterGain?.gain.linearRampToValueAtTime(0, t + 0.3)
-      // Mute pad voices immediately
+      this.masterGain?.gain.setValueAtTime(0, t)
+      // Mute ALL pad voices
       for (const voice of this.padVoices) {
         voice.gain.gain.cancelScheduledValues(t)
         voice.gain.gain.setValueAtTime(0, t)
       }
     }
-    // Suspend the audio context to fully stop processing
+    // Stop piano notes
+    if (this.piano) {
+      try { this.piano.releaseAll?.() } catch {}
+    }
+    // Stop soundfont
+    if (this.soundfontManager) {
+      this.soundfontManager.dispose()
+    }
+    // Suspend the audio context — kills ALL processing
     this.ctx?.suspend().catch(() => {})
   }
 
@@ -953,16 +960,9 @@ export class MusicEngine {
   private playBassVoice(midi: number, volume: number, time?: number) {
     if (!this.ctx || !this.masterGain) return
     const t = time ?? this.ctx.currentTime
-
-    // If real piano is loaded, use it for bass too (left hand piano bass)
-    if (this.pianoReady && this.piano && this.pianoEnabled) {
-      const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
-      const noteName = midiToNoteName(midi)
-      const velocity = Math.min(1, volume * config.bassVolume)
-      this.piano.triggerAttackRelease(noteName, 0.6, undefined, velocity)
-      return
-    }
-
+    // Bass uses the ORIGINAL synth (sine + triangle) — NOT piano.
+    // Piano samples don't cover the bass register (MIDI 33-45) properly.
+    // The original synth bass sounded good, keeping it.
     const freq = midiToFreq(midi)
     const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
 

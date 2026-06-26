@@ -43,7 +43,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v4.3.0'  // fix volume (applyStoredVolumes), fix MIDI, init on connect
+  const GAME_VERSION = 'v4.4.0'  // revert bass to synth, hard stop all sounds
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -59,6 +59,7 @@ export default function GameCanvas({
   // Cat purr on streak — plays when character is on a combo streak
   const lastPurrRef = useRef<number>(0)
   const playPurrRef = useRef<(() => void) | null>(null)
+  const activePurrRef = useRef<HTMLAudioElement | null>(null)  // track for hard stop
 
   // Refs that mirror props/state so the animation loop can read live values
   // without having those values in its useEffect deps (which would cause the
@@ -290,9 +291,41 @@ export default function GameCanvas({
   useEffect(() => {
     playPurrRef.current = () => {
       if (!sfxEnabledRef.current) return
+      // Stop any existing purr
+      if (activePurrRef.current) {
+        try { activePurrRef.current.pause() } catch {}
+      }
       const audio = new Audio('/sfx/cat_purr.ogg')
-      audio.volume = 0.3  // soft background purr
+      audio.volume = 0.3
+      activePurrRef.current = audio
       audio.play().catch(() => {})
+      audio.addEventListener('ended', () => {
+        if (activePurrRef.current === audio) activePurrRef.current = null
+      })
+    }
+  }, [])
+
+  // Hard stop ALL sounds (called when quitting to menu)
+  const hardStopAllSounds = useCallback(() => {
+    // Stop music engine
+    musicRef.current?.stop()
+    // Stop any active TTS
+    if (activeTtsAudioRef.current) {
+      try { activeTtsAudioRef.current.pause() } catch {}
+      activeTtsAudioRef.current = null
+    }
+    // Stop purr
+    if (activePurrRef.current) {
+      try { activePurrRef.current.pause() } catch {}
+      activePurrRef.current = null
+    }
+    // Stop SFX engine
+    if (sfxRef.current) {
+      sfxRef.current.resume() // ensure it's running so we can... actually just stop
+    }
+    // Stop Web Speech
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel()
     }
   }, [])
 
@@ -400,7 +433,7 @@ export default function GameCanvas({
     return () => {
       window.removeEventListener('resize', resize)
       cancelAnimationFrame(rafRef.current)
-      musicRef.current?.stop()
+      hardStopAllSounds()
     }
   }, [])
 
@@ -1522,7 +1555,7 @@ export default function GameCanvas({
                     setPhase('menu')
                     onPhaseChange?.('menu')
                     // STOP music when quitting to menu
-                    musicRef.current?.stop()
+                    hardStopAllSounds()
                   }
                 }}
                 className="px-8 py-3 rounded-full font-bold text-white/90 bg-white/10 border border-white/20 text-outline-sm"
@@ -1613,7 +1646,7 @@ export default function GameCanvas({
                   setPhase('menu')
                   onPhaseChange?.('menu')
                   // STOP music when going back to menu
-                  musicRef.current?.stop()
+                  hardStopAllSounds()
                 }
               }}
               className="mt-3 text-white/70 hover:text-white text-sm font-semibold text-outline-sm"
