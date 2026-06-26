@@ -2,26 +2,14 @@
 
 export type GamePhase = 'menu' | 'playing' | 'paused' | 'gameover'
 
-export type CharacterType = 'pip' | 'pixel' | 'mochi' | 'yuki' | 'kuro' | 'bongo' | 'popcat' | 'neon' | 'blob3d' | 'cat3d' | 'spark' | 'mochi2' | 'juri' | 'pixelbot' | 'ragdoll' | 'geometric' | 'shadow'
+export type CharacterType = 'pip' | 'pixel' | 'mochi' | 'yuki' | 'kuro' | 'bongo' | 'popcat' | 'neon' | 'blob3d' | 'cat3d' | 'spark' | 'mochi2' | 'juri' | 'pixelbot' | 'ragdoll' | 'geometric' | 'shadow' | 'fox3d' | 'robot3d'
 
 export const CHARACTER_NAMES: Record<CharacterType, string> = {
-  pip: 'Pip',
-  pixel: 'Pixel',
-  mochi: 'Mochi',
-  yuki: 'Yuki',
-  kuro: 'Kuro',
-  bongo: 'Bongo',
-  popcat: 'Pop',
-  neon: 'Neon',
-  blob3d: 'Blob3D',
-  cat3d: 'Cat3D',
-  spark: 'Spark',
-  mochi2: 'Mochi2',
-  juri: 'Juri',
-  pixelbot: 'PixelBot',
-  ragdoll: 'Ragdoll',
-  geometric: 'Geo',
-  shadow: 'Shadow',
+  pip: 'Pip', pixel: 'Pixel', mochi: 'Mochi', yuki: 'Yuki', kuro: 'Kuro',
+  bongo: 'Bongo', popcat: 'Pop', neon: 'Neon', blob3d: 'Blob3D', cat3d: 'Cat3D',
+  spark: 'Spark', mochi2: 'Mochi2', juri: 'Juri', pixelbot: 'PixelBot',
+  ragdoll: 'Ragdoll', geometric: 'Geo', shadow: 'Shadow',
+  fox3d: 'Fox3D', robot3d: 'Robot3D',
 }
 
 export const CHARACTER_DESCRIPTIONS: Record<CharacterType, string> = {
@@ -42,6 +30,8 @@ export const CHARACTER_DESCRIPTIONS: Record<CharacterType, string> = {
   ragdoll: 'A ragdoll character with spring-physics body parts. Floppy and alive.',
   geometric: 'A geometric vector character with rotating shapes. Modern indie style.',
   shadow: 'A mysterious silhouette with glowing eyes. Dark and minimalist.',
+  fox3d: 'A real 3D fox model (CC0) with Walk/Run/Survey animations. Imported glTF.',
+  robot3d: 'A real 3D robot model (CC-BY) with 14 animations. Imported glTF.',
 }
 
 /** Whether a character uses the 3D engine */

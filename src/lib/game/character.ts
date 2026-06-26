@@ -23,6 +23,7 @@ import { drawPixelBot } from './character-pixelbot'
 import { drawRagdoll } from './character-ragdoll'
 import { drawGeometric } from './character-geometric'
 import { drawShadow } from './character-shadow'
+import { loadModel3D, renderModel3D, type Model3DState } from './character3d-imported'
 
 export function drawCharacter(ctx: CanvasRenderingContext2D, c: CharacterState, time: number) {
   // 3D characters use a separate rendering engine
@@ -73,6 +74,12 @@ export function drawCharacter(ctx: CanvasRenderingContext2D, c: CharacterState, 
     return
   }
 
+  // Imported 3D models (Fox, Robot) — rendered via Three.js, composited onto Canvas2D
+  if (c.type === 'fox3d' || c.type === 'robot3d') {
+    drawImported3D(ctx, c, time)
+    return
+  }
+
   ctx.save()
   ctx.translate(c.x, c.y)
   ctx.rotate(c.rotation)
@@ -120,6 +127,8 @@ function getCharacterBaseHue(type: CharacterType): number {
     case 'ragdoll': return 25 // orange (ragdoll)
     case 'geometric': return 170 // teal (geometric)
     case 'shadow': return 270 // purple (shadow)
+    case 'fox3d': return 25 // orange (fox)
+    case 'robot3d': return 210 // blue (robot)
     default:       return 340 // fallback pink
   }
 }
@@ -1970,6 +1979,51 @@ export function addTrailPoint(c: CharacterState, time: number) {
   const hue = baseHue + Math.sin(time * 0.5) * 20
   c.trail.push({ x: c.x, y: c.y, life: 0.4, size: c.w * 0.35, hue })
   if (c.trail.length > 20) c.trail.shift()
+}
+
+// ===== Imported 3D Character Rendering =====
+// Uses Three.js to render real 3D models (Fox, Robot) and composites them
+// onto the Canvas2D game canvas via drawImage.
+
+const model3DCache: Map<string, Model3DState | null> = new Map()
+const model3DLoading: Set<string> = new Set()
+
+async function drawImported3D(ctx: CanvasRenderingContext2D, c: CharacterState, _time: number) {
+  const modelType = c.type === 'fox3d' ? 'fox' : 'robot'
+  const cacheKey = modelType
+
+  // Load model if not cached
+  if (!model3DCache.has(cacheKey) && !model3DLoading.has(cacheKey)) {
+    model3DLoading.add(cacheKey)
+    const state = await loadModel3D(modelType as any)
+    model3DCache.set(cacheKey, state)
+    model3DLoading.delete(cacheKey)
+  }
+
+  const state = model3DCache.get(cacheKey)
+  if (!state) {
+    // Model not loaded yet — draw a placeholder
+    ctx.save()
+    ctx.translate(c.x, c.y)
+    ctx.fillStyle = '#666'
+    ctx.font = '10px monospace'
+    ctx.textAlign = 'center'
+    ctx.fillText('Loading 3D...', 0, 0)
+    ctx.restore()
+    return
+  }
+
+  // Update animation and render
+  const canvas = renderModel3D(state, c.mood, c.vy)
+  if (canvas) {
+    // Composite the 3D canvas onto the game canvas at character position
+    ctx.save()
+    ctx.translate(c.x, c.y)
+    ctx.scale(c.squashX, c.squashY)
+    // Draw the 3D render centered on character
+    ctx.drawImage(canvas, -c.w / 2, -c.h / 2, c.w, c.h)
+    ctx.restore()
+  }
 }
 
 export function drawCharacterTrail(ctx: CanvasRenderingContext2D, c: CharacterState) {

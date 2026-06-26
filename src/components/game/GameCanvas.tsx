@@ -43,7 +43,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v5.0.0'  // 4 new characters: PixelBot, Ragdoll, Geometric, Shadow
+  const GAME_VERSION = 'v5.1.0'  // 3D imported characters: Fox (CC0) + Robot (CC-BY)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -2093,6 +2093,16 @@ function CharacterPreview({ type }: { type: CharacterType }) {
               <div style={{ position: 'absolute', top: '35%', left: '25%', width: 3, height: 5, borderRadius: '50%', background: '#aa66ff', boxShadow: '0 0 4px #aa66ff' }} />
               <div style={{ position: 'absolute', top: '35%', right: '25%', width: 3, height: 5, borderRadius: '50%', background: '#aa66ff', boxShadow: '0 0 4px #aa66ff' }} />
             </div>
+          </div>
+        )}
+        {type === 'fox3d' && (
+          <div style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 28, height: 28, borderRadius: '30%', background: 'linear-gradient(135deg, #e8943a, #c4621e)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>🦊</div>
+          </div>
+        )}
+        {type === 'robot3d' && (
+          <div style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 28, height: 28, borderRadius: '20%', background: 'linear-gradient(135deg, #4a90d9, #2a5a8a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>🤖</div>
           </div>
         )}
       </motion.div>
