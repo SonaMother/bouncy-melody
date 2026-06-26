@@ -26,6 +26,7 @@ import {
 } from './music-theory'
 import { MelodyEngineV2 } from './melody-engine-v2'
 import * as Tone from 'tone'
+import { SoundfontManager } from './soundfont-manager'
 // Real sampled grand piano via Tone.js Sampler + Salamander Grand Piano CDN.
 // Salamander = Yamaha C5, the gold standard free sampled piano for web.
 // Loads only 4 sample files (not 226 like smplr — no rate limiting).
@@ -87,6 +88,10 @@ export class MusicEngine {
   // Dedicated gain nodes for clean volume control
   private bassGain: GainNode | null = null
   private melodyGain: GainNode | null = null
+
+  // Soundfont manager — lets user select different instruments
+  private soundfontManager: SoundfontManager | null = null
+  private useSoundfontForMelody = false  // when true, soundfont replaces piano for melody
 
   // ---- Music state ----
   private progressionEngine: ProgressionEngine
@@ -529,11 +534,38 @@ export class MusicEngine {
 
   /** Play a note from MIDI keyboard (for experimentation). */
   playMidiNote(midi: number, velocity: number) {
-    if (this.pianoReady && this.piano && this.pianoEnabled) {
+    // Try soundfont first, then piano
+    if (this.useSoundfontForMelody && this.soundfontManager?.isReady()) {
+      this.soundfontManager.playNote(midi, velocity, 0.8)
+    } else if (this.pianoReady && this.piano && this.pianoEnabled) {
       const noteName = midiToNoteName(midi)
       this.piano.triggerAttackRelease(noteName, 0.8, undefined, velocity)
     }
   }
+
+  /** Load a soundfont instrument for melody. Replaces piano when active. */
+  async loadSoundfont(instrumentId: string): Promise<boolean> {
+    if (!this.ctx || !this.melodyGain) return false
+    if (!this.soundfontManager) {
+      this.soundfontManager = new SoundfontManager()
+      this.soundfontManager.setContext(this.ctx, this.melodyGain)
+    }
+    const ok = await this.soundfontManager.loadInstrument(instrumentId)
+    if (ok) {
+      this.useSoundfontForMelody = true
+    }
+    return ok
+  }
+
+  /** Disable soundfont, go back to piano. */
+  disableSoundfont() {
+    this.useSoundfontForMelody = false
+    this.soundfontManager?.dispose()
+    this.soundfontManager = null
+  }
+
+  isSoundfontReady() { return this.soundfontManager?.isReady() ?? false }
+  isUsingSoundfont() { return this.useSoundfontForMelody }
 
   // ---- Main game event: jump ----
 
@@ -834,6 +866,14 @@ export class MusicEngine {
   private playMelodyVoice(midi: number, volume: number, time?: number) {
     if (!this.ctx || !this.masterGain || !this.reverbBus || !this.delayBus) return
     const t = time ?? this.ctx.currentTime
+
+    // If soundfont is loaded, use it for melody (user-selected instrument)
+    if (this.useSoundfontForMelody && this.soundfontManager?.isReady()) {
+      const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
+      const velocity = Math.min(1, volume * config.melodyVolume * this.melodyVolumeMult)
+      this.soundfontManager.playNote(midi, velocity, 0.5)
+      return
+    }
 
     // If real piano (Tone.js Sampler) is loaded, use it for melody
     if (this.pianoReady && this.piano && this.pianoEnabled) {

@@ -28,6 +28,7 @@ import {
 } from '@/lib/game/tts-engine'
 import { CreatureSfxEngine, type SfxAction } from '@/lib/game/creature-sfx'
 import { MidiKeyboard } from '@/lib/game/midi-keyboard'
+import { SOUNDFONT_OPTIONS } from '@/lib/game/soundfont-manager'
 
 interface GameCanvasProps {
   onPhaseChange?: (phase: GamePhase) => void
@@ -42,7 +43,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v4.0.0'  // clean volume system, MIDI keyboard, multi-tab settings
+  const GAME_VERSION = 'v4.1.0'  // soundfont selector, MIDI keyboard, multi-tab settings
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -101,6 +102,9 @@ export default function GameCanvas({
   // MIDI keyboard
   const [midiEnabled, setMidiEnabled] = useState<boolean>(false)
   const midiRef = useRef<MidiKeyboard | null>(null)
+  // Soundfont selection
+  const [selectedSoundfont, setSelectedSoundfont] = useState<string>('')
+  const [soundfontLoading, setSoundfontLoading] = useState<boolean>(false)
   const [currentSubtitle, setCurrentSubtitle] = useState<string>('')
   const [subtitleTimer, setSubtitleTimer] = useState<number>(0)
   // Use fixed defaults to avoid hydration mismatch — localStorage loaded in useEffect after mount
@@ -308,6 +312,23 @@ export default function GameCanvas({
       }
     }
   }, [midiEnabled])
+
+  // Load a soundfont instrument for melody
+  const loadSoundfont = useCallback(async (instrumentId: string) => {
+    if (!musicRef.current) return
+    if (instrumentId === '') {
+      musicRef.current.disableSoundfont()
+      setSelectedSoundfont('')
+      return
+    }
+    setSoundfontLoading(true)
+    const ok = await musicRef.current.loadSoundfont(instrumentId)
+    setSoundfontLoading(false)
+    if (ok) {
+      setSelectedSoundfont(instrumentId)
+      if (typeof window !== 'undefined') localStorage.setItem('bouncy-soundfont', instrumentId)
+    }
+  }, [])
   useEffect(() => {
     if (ttsProcessorRef.current) {
       ttsProcessorRef.current.setReverbAmount(ttsReverb)
@@ -467,6 +488,12 @@ export default function GameCanvas({
     if (storedWeather === 'none' || storedWeather === 'snow' || storedWeather === 'rain') {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setWeather(storedWeather)
+    }
+    // Load saved soundfont preference (will be applied when game starts)
+    const storedSoundfont = localStorage.getItem('bouncy-soundfont')
+    if (storedSoundfont) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedSoundfont(storedSoundfont)
     }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
@@ -792,6 +819,10 @@ export default function GameCanvas({
       music.setPadVolumeMult(padVolume)
       music.setMelodyVolumeMult(melodyVolume)
       music.start()
+      // Apply saved soundfont if any
+      if (selectedSoundfont) {
+        music.loadSoundfont(selectedSoundfont)
+      }
       setStarted(true)
     } else {
       // Restart: just resume Tone's context
@@ -803,6 +834,9 @@ export default function GameCanvas({
       music.setBassVolumeMult(bassVolume)
       music.setPadVolumeMult(padVolume)
       music.setMelodyVolumeMult(melodyVolume)
+      if (selectedSoundfont) {
+        music.loadSoundfont(selectedSoundfont)
+      }
       music.reset()
       music.start()
     }
@@ -1317,6 +1351,27 @@ export default function GameCanvas({
                             onChange={(e) => setPadVolume(parseFloat(e.target.value))}
                             className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
                             style={{ background: `linear-gradient(to right, hsl(280, 70%, 50%) ${padVolume * 100}%, rgba(255,255,255,0.1) ${padVolume * 100}%)` }} />
+                        </div>
+                        {/* Divider */}
+                        <div className="border-t border-white/10 my-1"></div>
+                        {/* Soundfont selector */}
+                        <div>
+                          <div className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm mb-0.5">
+                            Melody Instrument {soundfontLoading && '(loading...)'}
+                          </div>
+                          <select
+                            value={selectedSoundfont}
+                            onChange={(e) => loadSoundfont(e.target.value)}
+                            className="w-full rounded px-1 py-0.5 text-[8px] bg-black/50 text-white border border-white/20"
+                            style={{ color: 'white' }}
+                          >
+                            <option value="">🎹 Salamander Piano (default)</option>
+                            {SOUNDFONT_OPTIONS.map(sf => (
+                              <option key={sf.id} value={sf.id}>
+                                {sf.category} — {sf.name}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                       </div>
                     )}
