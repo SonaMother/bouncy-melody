@@ -27,6 +27,7 @@ import {
   TtsAudioProcessor,
 } from '@/lib/game/tts-engine'
 import { CreatureSfxEngine, type SfxAction } from '@/lib/game/creature-sfx'
+import { MidiKeyboard } from '@/lib/game/midi-keyboard'
 
 interface GameCanvasProps {
   onPhaseChange?: (phase: GamePhase) => void
@@ -41,7 +42,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v3.9.0'  // true stereo Hammond, humanized notes, Juri preview, vol defaults
+  const GAME_VERSION = 'v4.0.0'  // clean volume system, MIDI keyboard, multi-tab settings
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -95,6 +96,11 @@ export default function GameCanvas({
   const [weather, setWeather] = useState<'none' | 'snow' | 'rain'>('snow')
   const [showSettings, setShowSettings] = useState<boolean>(false)
   const [showSplash, setShowSplash] = useState<boolean>(true)  // splash on launch
+  // Settings tabs
+  const [settingsTab, setSettingsTab] = useState<'audio' | 'voice' | 'sfx' | 'midi'>('audio')
+  // MIDI keyboard
+  const [midiEnabled, setMidiEnabled] = useState<boolean>(false)
+  const midiRef = useRef<MidiKeyboard | null>(null)
   const [currentSubtitle, setCurrentSubtitle] = useState<string>('')
   const [subtitleTimer, setSubtitleTimer] = useState<number>(0)
   // Use fixed defaults to avoid hydration mismatch — localStorage loaded in useEffect after mount
@@ -285,6 +291,23 @@ export default function GameCanvas({
       audio.play().catch(() => {})
     }
   }, [])
+
+  // Toggle MIDI keyboard support
+  const toggleMidi = useCallback(async () => {
+    if (midiEnabled) {
+      midiRef.current?.disconnect()
+      midiRef.current = null
+      setMidiEnabled(false)
+    } else {
+      const midi = new MidiKeyboard()
+      const ok = await midi.init()
+      if (ok && musicRef.current) {
+        midi.setMusicEngine(musicRef.current)
+        midiRef.current = midi
+        setMidiEnabled(true)
+      }
+    }
+  }, [midiEnabled])
   useEffect(() => {
     if (ttsProcessorRef.current) {
       ttsProcessorRef.current.setReverbAmount(ttsReverb)
@@ -1216,7 +1239,7 @@ export default function GameCanvas({
                   }}
                 >
                   <span className="text-[8px] font-bold text-outline-sm" style={{ color: showSettings ? 'white' : 'rgba(255,255,255,0.6)' }}>
-                    ⚙ SFX
+                    ⚙ Settings
                   </span>
                 </button>
               </div>
@@ -1228,165 +1251,180 @@ export default function GameCanvas({
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="mt-1.5 rounded p-2 space-y-2"
+                    className="mt-1.5 rounded p-2"
                     style={{
-                      background: 'rgba(15, 10, 25, 0.92)',
-                      border: '1px solid rgba(255,255,255,0.12)',
+                      background: 'rgba(15, 10, 25, 0.95)',
+                      border: '1px solid rgba(255,255,255,0.15)',
                     }}
                   >
-                    {/* Voice Reverb */}
-                    <div>
-                      <div className="flex justify-between items-center mb-0.5">
-                        <span className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm">Voice Reverb</span>
-                        <span className="text-[8px] text-white/80 font-mono text-outline-sm">{Math.round(ttsReverb * 100)}%</span>
+                    {/* Tab bar */}
+                    <div className="flex gap-0.5 mb-2">
+                      {([
+                        { id: 'audio', label: 'Audio' },
+                        { id: 'voice', label: 'Voice' },
+                        { id: 'sfx', label: 'SFX' },
+                        { id: 'midi', label: 'MIDI' },
+                      ] as const).map(tab => (
+                        <button
+                          key={tab.id}
+                          onClick={() => setSettingsTab(tab.id)}
+                          className="flex-1 rounded py-1 transition-all"
+                          style={{
+                            background: settingsTab === tab.id
+                              ? 'linear-gradient(135deg, hsl(280, 60%, 35%), hsl(280, 65%, 25%))'
+                              : 'rgba(15, 10, 25, 0.6)',
+                            border: settingsTab === tab.id
+                              ? '1px solid hsl(280, 80%, 55%)'
+                              : '1px solid rgba(255,255,255,0.08)',
+                          }}
+                        >
+                          <span className="text-[7px] font-bold text-outline-sm" style={{ color: settingsTab === tab.id ? 'white' : 'rgba(255,255,255,0.5)' }}>
+                            {tab.label}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* AUDIO TAB */}
+                    {settingsTab === 'audio' && (
+                      <div className="space-y-1.5">
+                        <div>
+                          <div className="flex justify-between items-center mb-0.5">
+                            <span className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm">Bass</span>
+                            <span className="text-[8px] text-white/80 font-mono text-outline-sm">{Math.round(bassVolume * 100)}%</span>
+                          </div>
+                          <input type="range" min={0} max={1} step={0.05} value={bassVolume}
+                            onChange={(e) => setBassVolume(parseFloat(e.target.value))}
+                            className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                            style={{ background: `linear-gradient(to right, hsl(200, 70%, 50%) ${bassVolume * 100}%, rgba(255,255,255,0.1) ${bassVolume * 100}%)` }} />
+                        </div>
+                        <div>
+                          <div className="flex justify-between items-center mb-0.5">
+                            <span className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm">Melody (Piano)</span>
+                            <span className="text-[8px] text-white/80 font-mono text-outline-sm">{Math.round(melodyVolume * 100)}%</span>
+                          </div>
+                          <input type="range" min={0} max={1} step={0.05} value={melodyVolume}
+                            onChange={(e) => setMelodyVolume(parseFloat(e.target.value))}
+                            className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                            style={{ background: `linear-gradient(to right, hsl(45, 70%, 50%) ${melodyVolume * 100}%, rgba(255,255,255,0.1) ${melodyVolume * 100}%)` }} />
+                        </div>
+                        <div>
+                          <div className="flex justify-between items-center mb-0.5">
+                            <span className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm">Pad (Organ)</span>
+                            <span className="text-[8px] text-white/80 font-mono text-outline-sm">{Math.round(padVolume * 100)}%</span>
+                          </div>
+                          <input type="range" min={0} max={1} step={0.05} value={padVolume}
+                            onChange={(e) => setPadVolume(parseFloat(e.target.value))}
+                            className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                            style={{ background: `linear-gradient(to right, hsl(280, 70%, 50%) ${padVolume * 100}%, rgba(255,255,255,0.1) ${padVolume * 100}%)` }} />
+                        </div>
                       </div>
-                      <input
-                        type="range"
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        value={ttsReverb}
-                        onChange={(e) => setTtsReverb(parseFloat(e.target.value))}
-                        className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
-                        style={{ background: `linear-gradient(to right, hsl(280, 70%, 50%) ${ttsReverb * 100}%, rgba(255,255,255,0.1) ${ttsReverb * 100}%)` }}
-                      />
-                    </div>
-                    {/* Voice Echo/Delay */}
-                    <div>
-                      <div className="flex justify-between items-center mb-0.5">
-                        <span className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm">Voice Echo</span>
-                        <span className="text-[8px] text-white/80 font-mono text-outline-sm">{Math.round(ttsDelay * 100)}%</span>
+                    )}
+
+                    {/* VOICE TAB */}
+                    {settingsTab === 'voice' && (
+                      <div className="space-y-1.5">
+                        <div>
+                          <div className="flex justify-between items-center mb-0.5">
+                            <span className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm">Voice Reverb</span>
+                            <span className="text-[8px] text-white/80 font-mono text-outline-sm">{Math.round(ttsReverb * 100)}%</span>
+                          </div>
+                          <input type="range" min={0} max={1} step={0.05} value={ttsReverb}
+                            onChange={(e) => setTtsReverb(parseFloat(e.target.value))}
+                            className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                            style={{ background: `linear-gradient(to right, hsl(280, 70%, 50%) ${ttsReverb * 100}%, rgba(255,255,255,0.1) ${ttsReverb * 100}%)` }} />
+                        </div>
+                        <div>
+                          <div className="flex justify-between items-center mb-0.5">
+                            <span className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm">Voice Echo</span>
+                            <span className="text-[8px] text-white/80 font-mono text-outline-sm">{Math.round(ttsDelay * 100)}%</span>
+                          </div>
+                          <input type="range" min={0} max={1} step={0.05} value={ttsDelay}
+                            onChange={(e) => setTtsDelay(parseFloat(e.target.value))}
+                            className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                            style={{ background: `linear-gradient(to right, hsl(200, 70%, 50%) ${ttsDelay * 100}%, rgba(255,255,255,0.1) ${ttsDelay * 100}%)` }} />
+                        </div>
+                        <div>
+                          <div className="flex justify-between items-center mb-0.5">
+                            <span className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm">Voice Volume</span>
+                            <span className="text-[8px] text-white/80 font-mono text-outline-sm">{Math.round(ttsVolume * 100)}%</span>
+                          </div>
+                          <input type="range" min={0} max={1} step={0.05} value={ttsVolume}
+                            onChange={(e) => setTtsVolume(parseFloat(e.target.value))}
+                            className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                            style={{ background: `linear-gradient(to right, hsl(140, 70%, 50%) ${ttsVolume * 100}%, rgba(255,255,255,0.1) ${ttsVolume * 100}%)` }} />
+                        </div>
                       </div>
-                      <input
-                        type="range"
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        value={ttsDelay}
-                        onChange={(e) => setTtsDelay(parseFloat(e.target.value))}
-                        className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
-                        style={{ background: `linear-gradient(to right, hsl(200, 70%, 50%) ${ttsDelay * 100}%, rgba(255,255,255,0.1) ${ttsDelay * 100}%)` }}
-                      />
-                    </div>
-                    {/* Voice Volume */}
-                    <div>
-                      <div className="flex justify-between items-center mb-0.5">
-                        <span className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm">Voice Volume</span>
-                        <span className="text-[8px] text-white/80 font-mono text-outline-sm">{Math.round(ttsVolume * 100)}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        value={ttsVolume}
-                        onChange={(e) => setTtsVolume(parseFloat(e.target.value))}
-                        className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
-                        style={{ background: `linear-gradient(to right, hsl(140, 70%, 50%) ${ttsVolume * 100}%, rgba(255,255,255,0.1) ${ttsVolume * 100}%)` }}
-                      />
-                    </div>
-                    {/* Divider */}
-                    <div className="border-t border-white/10 my-1"></div>
-                    {/* SFX toggle */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm">Creature SFX</span>
-                      <button
-                        onClick={() => setSfxEnabled(s => !s)}
-                        className="rounded px-1.5 py-0.5 text-[8px] font-bold text-outline-sm transition-all"
-                        style={{
-                          background: sfxEnabled
-                            ? 'linear-gradient(135deg, hsl(280, 60%, 35%), hsl(280, 65%, 25%))'
-                            : 'rgba(15, 10, 25, 0.8)',
-                          border: sfxEnabled
-                            ? '1px solid hsl(280, 80%, 55%)'
-                            : '1px solid rgba(255,255,255,0.12)',
-                          color: sfxEnabled ? 'white' : 'rgba(255,255,255,0.5)',
-                        }}
-                      >
-                        {sfxEnabled ? 'ON' : 'OFF'}
-                      </button>
-                    </div>
-                    {/* SFX Volume */}
-                    <div>
-                      <div className="flex justify-between items-center mb-0.5">
-                        <span className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm">SFX Volume</span>
-                        <span className="text-[8px] text-white/80 font-mono text-outline-sm">{Math.round(sfxVolume * 100)}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        value={sfxVolume}
-                        onChange={(e) => setSfxVolume(parseFloat(e.target.value))}
-                        className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
-                        style={{ background: `linear-gradient(to right, hsl(280, 70%, 50%) ${sfxVolume * 100}%, rgba(255,255,255,0.1) ${sfxVolume * 100}%)` }}
-                      />
-                    </div>
-                    {/* Divider */}
-                    <div className="border-t border-white/10 my-1"></div>
-                    {/* Music layer volumes */}
-                    <div className="text-[8px] uppercase tracking-wider text-white/40 font-bold text-outline-sm mb-1">Music Layers</div>
-                    {/* Bass Volume */}
-                    <div>
-                      <div className="flex justify-between items-center mb-0.5">
-                        <span className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm">Bass</span>
-                        <span className="text-[8px] text-white/80 font-mono text-outline-sm">{Math.round(bassVolume * 100)}%</span>
-                      </div>
-                      <input type="range" min={0} max={1} step={0.05} value={bassVolume}
-                        onChange={(e) => setBassVolume(parseFloat(e.target.value))}
-                        className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
-                        style={{ background: `linear-gradient(to right, hsl(200, 70%, 50%) ${bassVolume * 100}%, rgba(255,255,255,0.1) ${bassVolume * 100}%)` }} />
-                    </div>
-                    {/* Melody Volume */}
-                    <div>
-                      <div className="flex justify-between items-center mb-0.5">
-                        <span className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm">Melody (Piano)</span>
-                        <span className="text-[8px] text-white/80 font-mono text-outline-sm">{Math.round(melodyVolume * 100)}%</span>
-                      </div>
-                      <input type="range" min={0} max={1} step={0.05} value={melodyVolume}
-                        onChange={(e) => setMelodyVolume(parseFloat(e.target.value))}
-                        className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
-                        style={{ background: `linear-gradient(to right, hsl(45, 70%, 50%) ${melodyVolume * 100}%, rgba(255,255,255,0.1) ${melodyVolume * 100}%)` }} />
-                    </div>
-                    {/* Pad Volume */}
-                    <div>
-                      <div className="flex justify-between items-center mb-0.5">
-                        <span className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm">Pad (Organ)</span>
-                        <span className="text-[8px] text-white/80 font-mono text-outline-sm">{Math.round(padVolume * 100)}%</span>
-                      </div>
-                      <input type="range" min={0} max={1} step={0.05} value={padVolume}
-                        onChange={(e) => setPadVolume(parseFloat(e.target.value))}
-                        className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
-                        style={{ background: `linear-gradient(to right, hsl(280, 70%, 50%) ${padVolume * 100}%, rgba(255,255,255,0.1) ${padVolume * 100}%)` }} />
-                    </div>
-                    {/* Divider */}
-                    <div className="border-t border-white/10 my-1"></div>
-                    {/* Weather */}
-                    <div>
-                      <div className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm mb-0.5">Weather</div>
-                      <div className="grid grid-cols-3 gap-0.5">
-                        {(['none', 'snow', 'rain'] as const).map((mode) => (
-                          <button
-                            key={mode}
-                            onClick={() => setWeather(mode)}
-                            className="rounded py-0.5 transition-all"
+                    )}
+
+                    {/* SFX TAB */}
+                    {settingsTab === 'sfx' && (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm">Creature SFX</span>
+                          <button onClick={() => setSfxEnabled(s => !s)}
+                            className="rounded px-1.5 py-0.5 text-[8px] font-bold text-outline-sm transition-all"
                             style={{
-                              background: weather === mode
-                                ? 'linear-gradient(135deg, hsl(200, 60%, 35%), hsl(200, 65%, 25%))'
-                                : 'rgba(15, 10, 25, 0.8)',
-                              border: weather === mode
-                                ? '1px solid hsl(200, 80%, 55%)'
-                                : '1px solid rgba(255,255,255,0.12)',
-                            }}
-                          >
-                            <span className="text-[7px] font-bold text-outline-sm" style={{ color: weather === mode ? 'white' : 'rgba(255,255,255,0.5)' }}>
-                              {mode === 'none' ? 'Clear' : mode === 'snow' ? 'Snow' : 'Rain'}
-                            </span>
+                              background: sfxEnabled ? 'linear-gradient(135deg, hsl(280, 60%, 35%), hsl(280, 65%, 25%))' : 'rgba(15, 10, 25, 0.8)',
+                              border: sfxEnabled ? '1px solid hsl(280, 80%, 55%)' : '1px solid rgba(255,255,255,0.12)',
+                              color: sfxEnabled ? 'white' : 'rgba(255,255,255,0.5)',
+                            }}>
+                            {sfxEnabled ? 'ON' : 'OFF'}
                           </button>
-                        ))}
+                        </div>
+                        <div>
+                          <div className="flex justify-between items-center mb-0.5">
+                            <span className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm">SFX Volume</span>
+                            <span className="text-[8px] text-white/80 font-mono text-outline-sm">{Math.round(sfxVolume * 100)}%</span>
+                          </div>
+                          <input type="range" min={0} max={1} step={0.05} value={sfxVolume}
+                            onChange={(e) => setSfxVolume(parseFloat(e.target.value))}
+                            className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                            style={{ background: `linear-gradient(to right, hsl(280, 70%, 50%) ${sfxVolume * 100}%, rgba(255,255,255,0.1) ${sfxVolume * 100}%)` }} />
+                        </div>
+                        <div className="border-t border-white/10 my-1"></div>
+                        <div>
+                          <div className="text-[8px] uppercase tracking-wider text-white/60 font-bold text-outline-sm mb-0.5">Weather</div>
+                          <div className="grid grid-cols-3 gap-0.5">
+                            {(['none', 'snow', 'rain'] as const).map((mode) => (
+                              <button key={mode} onClick={() => setWeather(mode)}
+                                className="rounded py-0.5 transition-all"
+                                style={{
+                                  background: weather === mode ? 'linear-gradient(135deg, hsl(200, 60%, 35%), hsl(200, 65%, 25%))' : 'rgba(15, 10, 25, 0.8)',
+                                  border: weather === mode ? '1px solid hsl(200, 80%, 55%)' : '1px solid rgba(255,255,255,0.12)',
+                                }}>
+                                <span className="text-[7px] font-bold text-outline-sm" style={{ color: weather === mode ? 'white' : 'rgba(255,255,255,0.5)' }}>
+                                  {mode === 'none' ? 'Clear' : mode === 'snow' ? 'Snow' : 'Rain'}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    )}
+
+                    {/* MIDI TAB */}
+                    {settingsTab === 'midi' && (
+                      <div className="space-y-2">
+                        <div className="text-[8px] text-white/60 text-outline-sm leading-relaxed">
+                          Connect a MIDI keyboard to play the game's piano. Press keys to hear real piano sounds.
+                        </div>
+                        <button onClick={toggleMidi}
+                          className="w-full rounded py-1.5 text-[9px] font-bold text-outline-sm transition-all"
+                          style={{
+                            background: midiEnabled ? 'linear-gradient(135deg, hsl(140, 60%, 35%), hsl(140, 65%, 25%))' : 'linear-gradient(135deg, hsl(280, 60%, 35%), hsl(280, 65%, 25%))',
+                            border: midiEnabled ? '1px solid hsl(140, 80%, 55%)' : '1px solid hsl(280, 80%, 55%)',
+                            color: 'white',
+                          }}>
+                          {midiEnabled ? '✓ MIDI Connected — Click to Disconnect' : 'Connect MIDI Keyboard'}
+                        </button>
+                        {!midiEnabled && (
+                          <div className="text-[7px] text-white/40 text-outline-sm">
+                            Requires Web MIDI API support (Chrome/Edge). Click and allow MIDI access.
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>

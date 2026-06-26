@@ -84,6 +84,9 @@ export class MusicEngine {
   private bassVolumeMult = 1.0
   private padVolumeMult = 1.0
   private melodyVolumeMult = 1.0
+  // Dedicated gain nodes for clean volume control
+  private bassGain: GainNode | null = null
+  private melodyGain: GainNode | null = null
 
   // ---- Music state ----
   private progressionEngine: ProgressionEngine
@@ -157,6 +160,14 @@ export class MusicEngine {
       this.masterGain.connect(this.masterFilter)
       this.masterFilter.connect(this.analyser)
       this.analyser.connect(this.ctx.destination)
+
+      // Create dedicated layer gain nodes for clean volume control
+      this.bassGain = this.ctx.createGain()
+      this.bassGain.gain.value = 1.0
+      this.bassGain.connect(this.masterGain)
+      this.melodyGain = this.ctx.createGain()
+      this.melodyGain.gain.value = 1.0
+      this.melodyGain.connect(this.masterGain)
 
       this.started = true
       this.startPad()
@@ -266,24 +277,42 @@ export class MusicEngine {
     return this.useMelodyV2
   }
 
-  /** Set layer volume multipliers (0-1, multiplies with genre config volumes). */
-  setBassVolumeMult(v: number) {
-    this.bassVolumeMult = v  // 0-1, no boost
+  // ===== CLEAN VOLUME SYSTEM =====
+  // Each layer has a dedicated gain node. Sliders set the gain directly.
+  // No multipliers, no complex chains — just gain.value = slider value.
+
+  /** Set bass volume (0-1). Directly controls bassGain node. */
+  setBassVolume(v: number) {
+    this.bassVolumeMult = v
+    if (this.bassGain && this.ctx) {
+      this.bassGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05)
+    }
   }
-  setPadVolumeMult(v: number) {
-    this.padVolumeMult = v  // 0-1, no boost
+  /** Set pad volume (0-1). Directly controls pad voice gains. */
+  setPadVolumeLevel(v: number) {
+    this.padVolumeMult = v
     if (this.ctx) {
-      const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
-      this.setPadVolume(config.padVolume * this.padVolumeMult)
+      const t = this.ctx.currentTime
+      for (const voice of this.padVoices) {
+        voice.gain.gain.cancelScheduledValues(t)
+        voice.gain.gain.linearRampToValueAtTime(v * 0.05, t + 0.1)
+      }
     }
   }
-  setMelodyVolumeMult(v: number) {
-    this.melodyVolumeMult = v  // 0-1, no boost
+  /** Set melody volume (0-1). Controls synth melody gain AND piano volume. */
+  setMelodyVolumeLevel(v: number) {
+    this.melodyVolumeMult = v
+    if (this.melodyGain && this.ctx) {
+      this.melodyGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05)
+    }
     if (this.piano && this.pianoReady) {
-      const db = v > 0 ? 20 * Math.log10(v) : -60
-      this.piano.volume.value = db
+      this.piano.volume.value = v > 0 ? 20 * Math.log10(v) : -60
     }
   }
+  // Backward-compatible aliases
+  setBassVolumeMult(v: number) { this.setBassVolume(v) }
+  setPadVolumeMult(v: number) { this.setPadVolumeLevel(v) }
+  setMelodyVolumeMult(v: number) { this.setMelodyVolumeLevel(v) }
   getBassVolumeMult() { return this.bassVolumeMult }
   getPadVolumeMult() { return this.padVolumeMult }
   getMelodyVolumeMult() { return this.melodyVolumeMult }
@@ -497,6 +526,14 @@ export class MusicEngine {
   }
 
   // Hammond organ methods removed — using oscillator pad with Leslie/phaser.
+
+  /** Play a note from MIDI keyboard (for experimentation). */
+  playMidiNote(midi: number, velocity: number) {
+    if (this.pianoReady && this.piano && this.pianoEnabled) {
+      const noteName = midiToNoteName(midi)
+      this.piano.triggerAttackRelease(noteName, 0.8, undefined, velocity)
+    }
+  }
 
   // ---- Main game event: jump ----
 
@@ -852,7 +889,7 @@ export class MusicEngine {
     osc1.connect(g1); osc2.connect(g2); osc3.connect(g3)
     g1.connect(filter); g2.connect(filter); g3.connect(filter)
     filter.connect(amp)
-    amp.connect(this.masterGain)
+    amp.connect(this.melodyGain ?? this.masterGain)
     amp.connect(this.delayBus)
     amp.connect(this.reverbBus)
 
@@ -900,7 +937,7 @@ export class MusicEngine {
     osc1.connect(filter)
     osc2.connect(g2); g2.connect(filter)
     filter.connect(amp)
-    amp.connect(this.masterGain)
+    amp.connect(this.bassGain ?? this.masterGain)
 
     osc1.start(t); osc2.start(t)
     osc1.stop(t + 0.8); osc2.stop(t + 0.8)
@@ -963,10 +1000,10 @@ export class MusicEngine {
       const panner = this.ctx.createStereoPanner()
       panner.pan.value = (Math.random() - 0.5) * 0.4
       amp.connect(panner)
-      panner.connect(this.masterGain)
+      panner.connect(this.melodyGain ?? this.masterGain)
       panner.connect(this.reverbBus)
     } else {
-      amp.connect(this.masterGain)
+      amp.connect(this.melodyGain ?? this.masterGain)
       amp.connect(this.reverbBus)
       amp.connect(this.delayBus)
     }
@@ -1094,7 +1131,7 @@ export class MusicEngine {
 
     osc.connect(filter)
     filter.connect(amp)
-    amp.connect(this.masterGain)
+    amp.connect(this.bassGain ?? this.masterGain)
     osc.start(time)
     osc.stop(time + duration + 0.1)
   }
