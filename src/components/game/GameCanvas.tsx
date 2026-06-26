@@ -41,7 +41,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v3.8.0'  // fix Tone.start order, remove silent catch
+  const GAME_VERSION = 'v3.9.0'  // true stereo Hammond, humanized notes, Juri preview, vol defaults
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -1800,6 +1800,25 @@ function CharacterPreview({ type }: { type: CharacterType }) {
               <div style={{ position: 'absolute', top: 11, left: 7.5, width: 3, height: 3, borderRadius: '50%', background: '#fff' }} />
               <div style={{ position: 'absolute', top: 11, right: 7.5, width: 3, height: 3, borderRadius: '50%', background: '#fff' }} />
               <div style={{ position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)', fontSize: '7px', color: 'hsl(340, 90%, 65%)', lineHeight: 1 }}>♥</div>
+            </div>
+          </div>
+        )}
+        {type === 'juri' && (
+          <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+            {/* Ox-horn hair buns */}
+            <div style={{ position: 'absolute', top: -6, left: 2, width: 8, height: 12, borderRadius: '40%', background: '#2a1050', transform: 'rotate(-15deg)' }} />
+            <div style={{ position: 'absolute', top: -6, right: 2, width: 8, height: 12, borderRadius: '40%', background: '#2a1050', transform: 'rotate(15deg)' }} />
+            {/* Head */}
+            <div style={{ width: '100%', height: '90%', borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #f5e0d0, #d8a080)', position: 'relative', marginTop: 2 }}>
+              {/* Hair bangs */}
+              <div style={{ position: 'absolute', top: -2, left: '15%', width: '70%', height: 8, borderRadius: '50% 50% 0 0', background: '#2a1050' }} />
+              {/* Left eye (open) */}
+              <div style={{ position: 'absolute', top: 11, left: 6, width: 5, height: 6, borderRadius: '50%', background: '#c020a0' }} />
+              {/* Right eye (eye patch) */}
+              <div style={{ position: 'absolute', top: 10, right: 5, width: 7, height: 6, borderRadius: '40%', background: '#1a1a1a' }} />
+              <div style={{ position: 'absolute', top: 12, right: 7, width: 3, height: 3, borderRadius: '50%', background: '#c020a0', boxShadow: '0 0 4px #c020a0' }} />
+              {/* Smirk */}
+              <div style={{ position: 'absolute', top: 19, left: '40%', width: 6, height: 2, borderBottom: '1.5px solid #8a4030', borderRadius: '0 0 50% 50%' }} />
             </div>
           </div>
         )}

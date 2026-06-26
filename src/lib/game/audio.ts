@@ -81,9 +81,9 @@ export class MusicEngine {
   private pianoEnabled = true  // on by default
 
   // ---- Layer volume multipliers (set from UI, multiply with genre config) ----
-  private bassVolumeMult = 0.8
-  private padVolumeMult = 0.5
-  private melodyVolumeMult = 0.8
+  private bassVolumeMult = 1.0
+  private padVolumeMult = 1.0
+  private melodyVolumeMult = 1.0
 
   // ---- Music state ----
   private progressionEngine: ProgressionEngine
@@ -375,43 +375,16 @@ export class MusicEngine {
     const ctx = this.ctx!
     const fundamentalFreq = midiToFreq(midiNote)
 
-    // Main oscillator (fundamental) — this is what gets the Leslie vibrato
+    // Main oscillator (fundamental)
     const osc = ctx.createOscillator()
     osc.type = 'sine'
     osc.frequency.value = fundamentalFreq
 
-    // Gain for this voice (controlled by setPadVolume)
+    // Voice gain (controlled by setPadVolume)
     const gain = ctx.createGain()
     gain.gain.value = 0
 
-    // STEREO panner — each voice gets a unique pan position for wide stereo image.
-    // Voices alternate left/right based on phaseOffset for a wide, immersive pad.
-    const panner = ctx.createStereoPanner()
-    panner.pan.value = (phaseOffset % 3 === 0) ? -0.6 : (phaseOffset % 3 === 1) ? 0.6 : 0
-
-    // Auto-pan LFO — slowly moves the pan for a living, breathing stereo effect.
-    // Different speed from tremolo/vibrato for rich, complex modulation.
-    const panLfo = ctx.createOscillator()
-    panLfo.type = 'sine'
-    panLfo.frequency.value = 0.2 + (phaseOffset % 3) * 0.08  // 0.2-0.36 Hz — very slow
-    const panLfoGain = ctx.createGain()
-    panLfoGain.gain.value = 0.4  // ±0.4 pan sweep around base position
-    const panPhase = ctx.createDelay(3.0)
-    panPhase.delayTime.value = (phaseOffset * 0.37) % 3.0
-    panLfo.connect(panPhase)
-    panPhase.connect(panLfoGain)
-    panLfoGain.connect(panner.pan)
-    panLfo.start()
-
-    // Connect: osc → gain (volume) → tremoloGain (tremolo) → panner → masterGain
-    // Tremolo is a SEPARATE gain node in the signal path (not added to gain.gain).
-    // This way, when volume gain = 0, the output is 0 × tremolo = 0 (truly silent).
-    osc.connect(gain)
-    gain.connect(panner)
-    panner.connect(this.masterGain!)
-    osc.start()
-
-    // Create 8 additional drawbar oscillators (harmonics 2-9)
+    // Create 8 additional drawbar oscillators (harmonics 2-9) — sum into gain
     for (let d = 1; d < MusicEngine.DRAWBAR_HARMONICS.length; d++) {
       const harmonic = MusicEngine.DRAWBAR_HARMONICS[d]
       const drawbarVol = MusicEngine.DRAWBAR_VOLUMES[d]
@@ -419,53 +392,83 @@ export class MusicEngine {
       drawbarOsc.type = 'sine'
       drawbarOsc.frequency.value = fundamentalFreq * harmonic
       const drawbarGain = ctx.createGain()
-      drawbarGain.gain.value = drawbarVol * 0.15  // audible — was 0.06 (too quiet)
+      drawbarGain.gain.value = drawbarVol * 0.15
       drawbarOsc.connect(drawbarGain)
       drawbarGain.connect(gain)
       drawbarOsc.start()
     }
 
-    // Leslie tremolo — modulates a SEPARATE gain node in the signal path.
-    // LFO output (±1) scaled to 0.225, added to base 0.775 = swings 0.55↔1.0
-    // This is MULTIPLICATIVE (gain × tremolo), so volume=0 → silence.
-    // OLD BUG: tremoloGain connected to gain.gain directly, which ADDED
-    // the LFO to the base volume, making 0% still audible.
-    const tremoloNode = ctx.createGain()
-    tremoloNode.gain.value = 0.775  // center: (1.0 + 0.55) / 2
-    const tremoloLfo = ctx.createOscillator()
-    tremoloLfo.type = 'sine'
-    tremoloLfo.frequency.value = 1.2 + (phaseOffset % 3) * 0.3
-    const tremoloDepth = ctx.createGain()
-    tremoloDepth.gain.value = 0.225
-    const tremoloPhase = ctx.createDelay(1.0)
-    tremoloPhase.delayTime.value = (phaseOffset * 0.17) % 1.0
-    tremoloLfo.connect(tremoloPhase)
-    tremoloPhase.connect(tremoloDepth)
-    tremoloDepth.connect(tremoloNode.gain)
-    tremoloLfo.start()
-    // Insert tremoloNode into the signal chain (between gain and panner)
-    gain.disconnect()
-    gain.connect(tremoloNode)
-    tremoloNode.connect(panner)
-    const tremoloGain = tremoloNode  // alias for return type compatibility
+    // ===== TRUE STEREO SPLIT =====
+    // Split signal into LEFT and RIGHT channels with SEPARATE LFOs.
+    // Each channel has its own vibrato (pitch) and tremolo (amplitude) at
+    // DIFFERENT frequencies for rich, wide stereo Hammond sound.
 
-    // STEREO vibrato — LEFT and RIGHT channels get different vibrato rates.
-    // We can't truly split one oscillator into L/R with different vibrato,
-    // but we CAN create the illusion by using the auto-pan + a complex vibrato.
-    // Left vibrato (slower, 4 cents)
-    const vibratoLfo = ctx.createOscillator()
-    vibratoLfo.type = 'sine'
-    vibratoLfo.frequency.value = 0.4 + (phaseOffset % 4) * 0.12  // 0.4-0.76 Hz
-    const vibratoGain = ctx.createGain()
-    vibratoGain.gain.value = 4  // 4 cents
-    const vibratoPhase = ctx.createDelay(2.0)
-    vibratoPhase.delayTime.value = (phaseOffset * 0.29) % 2.0
-    vibratoLfo.connect(vibratoPhase)
-    vibratoPhase.connect(vibratoGain)
-    vibratoGain.connect(osc.frequency)
-    vibratoLfo.start()
+    // LEFT channel
+    const leftPanner = ctx.createStereoPanner()
+    leftPanner.pan.value = -1  // hard left
+    const leftTremolo = ctx.createGain()
+    leftTremolo.gain.value = 0.8
+    const leftTremoloLfo = ctx.createOscillator()
+    leftTremoloLfo.type = 'sine'
+    leftTremoloLfo.frequency.value = 1.2 + (phaseOffset % 2) * 0.2  // 1.2-1.4 Hz
+    const leftTremoloDepth = ctx.createGain()
+    leftTremoloDepth.gain.value = 0.2
+    leftTremoloLfo.connect(leftTremoloDepth)
+    leftTremoloDepth.connect(leftTremolo.gain)
+    leftTremoloLfo.start()
 
-    return { osc, gain, tremoloLfo, tremoloGain, vibratoLfo, vibratoGain }
+    // LEFT vibrato (slower)
+    const leftVibrato = ctx.createOscillator()
+    leftVibrato.type = 'sine'
+    leftVibrato.frequency.value = 0.4 + (phaseOffset % 3) * 0.1  // 0.4-0.6 Hz
+    const leftVibratoGain = ctx.createGain()
+    leftVibratoGain.gain.value = 4  // 4 cents
+    leftVibrato.connect(leftVibratoGain)
+    leftVibratoGain.connect(osc.frequency)
+    leftVibrato.start()
+
+    // RIGHT channel
+    const rightPanner = ctx.createStereoPanner()
+    rightPanner.pan.value = 1  // hard right
+    const rightTremolo = ctx.createGain()
+    rightTremolo.gain.value = 0.8
+    const rightTremoloLfo = ctx.createOscillator()
+    rightTremoloLfo.type = 'sine'
+    rightTremoloLfo.frequency.value = 1.8 + (phaseOffset % 2) * 0.3  // 1.8-2.1 Hz (DIFFERENT from left!)
+    const rightTremoloDepth = ctx.createGain()
+    rightTremoloDepth.gain.value = 0.2
+    rightTremoloLfo.connect(rightTremoloDepth)
+    rightTremoloDepth.connect(rightTremolo.gain)
+    rightTremoloLfo.start()
+
+    // RIGHT vibrato (FASTER — different from left for stereo widening)
+    const rightVibrato = ctx.createOscillator()
+    rightVibrato.type = 'sine'
+    rightVibrato.frequency.value = 0.7 + (phaseOffset % 3) * 0.12  // 0.7-0.94 Hz (FASTER than left!)
+    const rightVibratoGain = ctx.createGain()
+    rightVibratoGain.gain.value = 6  // 6 cents (deeper than left)
+    // Delay the right vibrato for phase offset
+    const rightVibratoDelay = ctx.createDelay(0.1)
+    rightVibratoDelay.delayTime.value = 0.02  // 20ms delay
+    rightVibrato.connect(rightVibratoDelay)
+    rightVibratoDelay.connect(rightVibratoGain)
+    rightVibratoGain.connect(osc.frequency)
+    rightVibrato.start()
+
+    // Connect: gain → [left path] and [right path] → masterGain
+    gain.connect(leftTremolo)
+    leftTremolo.connect(leftPanner)
+    leftPanner.connect(this.masterGain!)
+
+    gain.connect(rightTremolo)
+    rightTremolo.connect(rightPanner)
+    rightPanner.connect(this.masterGain!)
+
+    osc.connect(gain)
+    osc.start()
+
+    // Return (using left vibrato as the "main" for compatibility)
+    return { osc, gain, tremoloLfo: leftTremoloLfo, tremoloGain: leftTremolo, vibratoLfo: leftVibrato, vibratoGain: leftVibratoGain }
   }
 
   private setPadVolume(v: number) {
@@ -538,12 +541,16 @@ export class MusicEngine {
       return
     }
 
-    // Schedule `count` progression steps at 85ms intervals
-    // This creates a rapid melodic flourish that mirrors the boosted jump
+    // Schedule `count` progression steps with HUMANIZED timing.
+    // ~20ms between notes (was 85ms) for a fast, natural, musical flourish.
+    // Add slight randomization (±5ms) so it doesn't sound robotic.
     const baseTime = this.ctx.currentTime
-    const interval = 0.085 // 85ms between notes — fast but musical
+    let currentTime = baseTime
     for (let i = 0; i < count; i++) {
-      this.scheduleProgressionStep(baseTime + i * interval)
+      this.scheduleProgressionStep(currentTime)
+      // Humanized delay: 15-25ms (average 20ms) with slight randomization
+      const humanDelay = 0.015 + Math.random() * 0.010  // 15-25ms
+      currentTime += humanDelay
     }
   }
 
