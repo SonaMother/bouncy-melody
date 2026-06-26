@@ -43,7 +43,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v4.2.0'  // SIMPLE volume (gain nodes only), fix soundfont selection
+  const GAME_VERSION = 'v4.3.0'  // fix volume (applyStoredVolumes), fix MIDI, init on connect
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -305,7 +305,12 @@ export default function GameCanvas({
     } else {
       const midi = new MidiKeyboard()
       const ok = await midi.init()
-      if (ok && musicRef.current) {
+      if (ok) {
+        // If music engine exists, connect. If not, create a minimal one for MIDI testing.
+        if (!musicRef.current) {
+          musicRef.current = new MusicEngine()
+          await musicRef.current.init()
+        }
         midi.setMusicEngine(musicRef.current)
         midiRef.current = midi
         setMidiEnabled(true)
@@ -815,9 +820,8 @@ export default function GameCanvas({
       } catch {}
       await music.init()
       music.setGenre(selectedGenre)
-      music.setBassVolumeMult(bassVolume)
-      music.setPadVolumeMult(padVolume)
-      music.setMelodyVolumeMult(melodyVolume)
+      // Apply stored volumes NOW (gain nodes exist after init)
+      music.applyStoredVolumes()
       music.start()
       // Apply saved soundfont if any
       if (selectedSoundfont) {
@@ -831,9 +835,7 @@ export default function GameCanvas({
         await Tone.start()
       } catch {}
       music.setGenre(selectedGenre)
-      music.setBassVolumeMult(bassVolume)
-      music.setPadVolumeMult(padVolume)
-      music.setMelodyVolumeMult(melodyVolume)
+      music.applyStoredVolumes()
       if (selectedSoundfont) {
         music.loadSoundfont(selectedSoundfont)
       }

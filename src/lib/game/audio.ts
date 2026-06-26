@@ -286,32 +286,50 @@ export class MusicEngine {
   // ONE gain node per layer at the FINAL output.
   // Slider value (0-1) = gain.value directly. That's it.
 
-  /** Set bass volume (0-1). Sets bassGain.gain.value directly. */
+  /** Set bass volume (0-1). Stores value and applies to gain node if ready. */
   setBassVolume(v: number) {
     this.bassVolumeMult = v
     if (this.bassGain && this.ctx) {
       this.bassGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.02)
     }
   }
-  /** Set pad volume (0-1). Sets each pad voice's output gain directly. */
+  /** Set pad volume (0-1). Stores value and applies to pad voices if ready. */
   setPadVolumeLevel(v: number) {
     this.padVolumeMult = v
-    if (this.ctx) {
+    if (this.ctx && this.padVoices.length > 0) {
       const t = this.ctx.currentTime
       for (const voice of this.padVoices) {
         voice.gain.gain.setTargetAtTime(v, t, 0.02)
       }
     }
   }
-  /** Set melody volume (0-1). Sets melodyGain.gain.value directly. */
+  /** Set melody volume (0-1). Stores value and applies to gain node if ready. */
   setMelodyVolumeLevel(v: number) {
     this.melodyVolumeMult = v
     if (this.melodyGain && this.ctx) {
       this.melodyGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.02)
     }
-    // Also set piano volume (Tone.js uses dB — but we convert from linear 0-1)
     if (this.piano && this.pianoReady) {
       this.piano.volume.value = v > 0.001 ? 20 * Math.log10(v) : -60
+    }
+  }
+
+  /** Apply stored volumes to gain nodes (called after init creates the nodes). */
+  applyStoredVolumes() {
+    if (this.bassGain && this.ctx) {
+      this.bassGain.gain.value = this.bassVolumeMult
+    }
+    if (this.melodyGain && this.ctx) {
+      this.melodyGain.gain.value = this.melodyVolumeMult
+    }
+    if (this.padVoices.length > 0 && this.ctx) {
+      const t = this.ctx.currentTime
+      for (const voice of this.padVoices) {
+        voice.gain.gain.setTargetAtTime(this.padVolumeMult, t, 0.02)
+      }
+    }
+    if (this.piano && this.pianoReady) {
+      this.piano.volume.value = this.melodyVolumeMult > 0.001 ? 20 * Math.log10(this.melodyVolumeMult) : -60
     }
   }
   // Backward-compatible aliases
