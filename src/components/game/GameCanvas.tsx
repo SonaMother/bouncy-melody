@@ -43,7 +43,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v5.4.0'  // fix 3D scale, fix instruments, fix stereo pad, scrollable chars
+  const GAME_VERSION = 'v5.5.0'  // Fighter character (SF-style pixel art), all fixes applied
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -2121,6 +2121,28 @@ function CharacterPreview({ type }: { type: CharacterType }) {
               {/* Legs (floppy) */}
               <div style={{ position: 'absolute', top: 21, left: 4, width: 4, height: 6, borderRadius: '30%', background: '#c4621e', transform: 'rotate(-10deg)' }} />
               <div style={{ position: 'absolute', top: 21, right: 4, width: 4, height: 6, borderRadius: '30%', background: '#c4621e', transform: 'rotate(10deg)' }} />
+            </div>
+          </div>
+        )}
+        {type === 'fighter' && (
+          <div style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ position: 'relative', width: 18, height: 28 }}>
+              {/* Head with headband */}
+              <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 10, height: 8, borderRadius: '30%', background: '#e8b888' }}>
+                <div style={{ position: 'absolute', top: -2, left: -2, right: -2, height: 3, background: '#e02020', borderRadius: '2px' }} />
+                <div style={{ position: 'absolute', top: 3, left: 2, width: 2, height: 2, borderRadius: '50%', background: '#1a1a1a' }} />
+                <div style={{ position: 'absolute', top: 3, right: 2, width: 2, height: 2, borderRadius: '50%', background: '#1a1a1a' }} />
+              </div>
+              {/* Gi (white outfit) */}
+              <div style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', width: 14, height: 12, borderRadius: '10%', background: '#f5f5f5', border: '1px solid #d0d0d0' }}>
+                <div style={{ position: 'absolute', top: 4, left: '50%', transform: 'translateX(-50%)', width: 4, height: 3, background: '#1a1a1a', borderRadius: '1px' }} />
+              </div>
+              {/* Fists up (fighting stance) */}
+              <div style={{ position: 'absolute', top: 9, left: -1, width: 4, height: 4, borderRadius: '50%', background: '#e8b888' }} />
+              <div style={{ position: 'absolute', top: 9, right: -1, width: 4, height: 4, borderRadius: '50%', background: '#e8b888' }} />
+              {/* Legs */}
+              <div style={{ position: 'absolute', top: 20, left: 3, width: 4, height: 7, borderRadius: '20%', background: '#f5f5f5', border: '1px solid #d0d0d0' }} />
+              <div style={{ position: 'absolute', top: 20, right: 3, width: 4, height: 7, borderRadius: '20%', background: '#f5f5f5', border: '1px solid #d0d0d0' }} />
             </div>
           </div>
         )}

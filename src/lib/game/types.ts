@@ -2,14 +2,14 @@
 
 export type GamePhase = 'menu' | 'playing' | 'paused' | 'gameover'
 
-export type CharacterType = 'pip' | 'pixel' | 'mochi' | 'yuki' | 'kuro' | 'bongo' | 'popcat' | 'neon' | 'blob3d' | 'cat3d' | 'spark' | 'mochi2' | 'juri' | 'pixelbot' | 'ragdoll' | 'geometric' | 'shadow' | 'fox3d' | 'robot3d' | 'matterbot'
+export type CharacterType = 'pip' | 'pixel' | 'mochi' | 'yuki' | 'kuro' | 'bongo' | 'popcat' | 'neon' | 'blob3d' | 'cat3d' | 'spark' | 'mochi2' | 'juri' | 'pixelbot' | 'ragdoll' | 'geometric' | 'shadow' | 'fox3d' | 'robot3d' | 'matterbot' | 'fighter'
 
 export const CHARACTER_NAMES: Record<CharacterType, string> = {
   pip: 'Pip', pixel: 'Pixel', mochi: 'Mochi', yuki: 'Yuki', kuro: 'Kuro',
   bongo: 'Bongo', popcat: 'Pop', neon: 'Neon', blob3d: 'Blob3D', cat3d: 'Cat3D',
   spark: 'Spark', mochi2: 'Mochi2', juri: 'Juri', pixelbot: 'PixelBot',
   ragdoll: 'Ragdoll', geometric: 'Geo', shadow: 'Shadow',
-  fox3d: 'Fox3D', robot3d: 'Robot3D', matterbot: 'MatterBot',
+  fox3d: 'Fox3D', robot3d: 'Robot3D', matterbot: 'MatterBot', fighter: 'Fighter',
 }
 
 export const CHARACTER_DESCRIPTIONS: Record<CharacterType, string> = {
@@ -33,6 +33,7 @@ export const CHARACTER_DESCRIPTIONS: Record<CharacterType, string> = {
   fox3d: 'A real 3D fox model (CC0) with Walk/Run/Survey animations. Imported glTF.',
   robot3d: 'A real 3D robot model (CC-BY) with 14 animations. Imported glTF.',
   matterbot: 'TRUE physics ragdoll via Matter.js. Body parts react to jumps/landings dynamically.',
+  fighter: 'Original pixel-art fighting game character. Gi, headband, fighting stance animations.',
 }
 
 /** Whether a character uses the 3D engine */

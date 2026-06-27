@@ -25,6 +25,7 @@ import { drawGeometric } from './character-geometric'
 import { drawShadow } from './character-shadow'
 import { loadModel3D, renderModel3D, type Model3DState } from './character3d-imported'
 import { createRagdoll, updateRagdollPhysics, drawPhysicsRagdoll, removeRagdoll, type PhysicsRagdoll } from './character-matter-ragdoll'
+import { drawFighter } from './character-fighter'
 
 export function drawCharacter(ctx: CanvasRenderingContext2D, c: CharacterState, time: number) {
   // 3D characters use a separate rendering engine
@@ -87,6 +88,12 @@ export function drawCharacter(ctx: CanvasRenderingContext2D, c: CharacterState, 
     return
   }
 
+  // Fighter — original pixel-art fighting game character
+  if (c.type === 'fighter') {
+    drawFighter(ctx, c, time)
+    return
+  }
+
   ctx.save()
   ctx.translate(c.x, c.y)
   ctx.rotate(c.rotation)
@@ -137,6 +144,7 @@ function getCharacterBaseHue(type: CharacterType): number {
     case 'fox3d': return 25 // orange (fox)
     case 'robot3d': return 210 // blue (robot)
     case 'matterbot': return 25 // orange (matter physics)
+    case 'fighter': return 0 // red (fighter headband)
     default:       return 340 // fallback pink
   }
 }
