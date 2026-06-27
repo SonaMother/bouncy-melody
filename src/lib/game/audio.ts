@@ -297,12 +297,15 @@ export class MusicEngine {
       this.bassGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.02)
     }
   }
-  /** Set pad volume (0-1). POST-PROCESSING knob — sets padGain.gain directly.
-   * Nothing else touches padGain, so this always works. */
+  /** Set pad volume (0-1). Controls each pad voice's gain directly.
+   * Panners connect to masterGain to preserve stereo (padGain would sum to mono). */
   setPadVolumeLevel(v: number) {
     this.padVolumeMult = v
-    if (this.padGain && this.ctx) {
-      this.padGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.02)
+    if (this.ctx && this.padVoices.length > 0) {
+      const t = this.ctx.currentTime
+      for (const voice of this.padVoices) {
+        voice.gain.gain.setTargetAtTime(v * 0.05, t, 0.02)  // *0.05 = internal scale
+      }
     }
   }
   /** Set melody volume (0-1). Stores value and applies to gain node if ready. */
@@ -324,8 +327,12 @@ export class MusicEngine {
     if (this.melodyGain && this.ctx) {
       this.melodyGain.gain.value = this.melodyVolumeMult
     }
-    if (this.padGain && this.ctx) {
-      this.padGain.gain.value = this.padVolumeMult
+    // Pad: apply to each voice gain (not padGain — panners bypass it for stereo)
+    if (this.padVoices.length > 0 && this.ctx) {
+      const t = this.ctx.currentTime
+      for (const voice of this.padVoices) {
+        voice.gain.gain.setTargetAtTime(this.padVolumeMult * 0.05, t, 0.02)
+      }
     }
     if (this.piano && this.pianoReady) {
       this.piano.volume.value = this.melodyVolumeMult > 0.001 ? 20 * Math.log10(this.melodyVolumeMult) : -60
@@ -513,14 +520,16 @@ export class MusicEngine {
     rightVibratoGain.connect(osc.frequency)
     rightVibrato.start()
 
-    // Connect: gain → [left path] and [right path] → padGain (post-processing volume)
+    // Connect: gain → [left path] and [right path] → masterGain
+    // NOTE: Connect panners directly to masterGain (NOT padGain) to preserve stereo.
+    // padGain would sum L+R back to mono. Volume is controlled via voice gain instead.
     gain.connect(leftTremolo)
     leftTremolo.connect(leftPanner)
-    leftPanner.connect(this.padGain ?? this.masterGain!)
+    leftPanner.connect(this.masterGain!)
 
     gain.connect(rightTremolo)
     rightTremolo.connect(rightPanner)
-    rightPanner.connect(this.padGain ?? this.masterGain!)
+    rightPanner.connect(this.masterGain!)
 
     osc.connect(gain)
     osc.start()
@@ -556,12 +565,18 @@ export class MusicEngine {
 
   // Hammond organ methods removed — using oscillator pad with Leslie/phaser.
 
-  /** Play a note from MIDI keyboard (for experimentation). */
+  /** Play a note from MIDI keyboard — plays the active channel's soundfont. */
   playMidiNote(midi: number, velocity: number) {
-    // Try soundfont first, then piano
-    if (this.useSoundfontForMelody && this.soundfontManager?.isReady()) {
-      this.soundfontManager.playNote(midi, velocity, 0.8)
-    } else if (this.pianoReady && this.piano && this.pianoEnabled) {
+    // Try soundfont on active channel first
+    if (this.soundfontManager) {
+      const activeCh = this.soundfontManager.getActiveChannel()
+      if (this.soundfontManager.isChannelReady(activeCh)) {
+        this.soundfontManager.playNoteOnActive(midi, velocity)
+        return
+      }
+    }
+    // Fall back to piano
+    if (this.pianoReady && this.piano && this.pianoEnabled) {
       const noteName = midiToNoteName(midi)
       this.piano.triggerAttackRelease(noteName, 0.8, undefined, velocity)
     }
@@ -964,9 +979,16 @@ export class MusicEngine {
   private playBassVoice(midi: number, volume: number, time?: number) {
     if (!this.ctx || !this.masterGain) return
     const t = time ?? this.ctx.currentTime
-    // Bass uses the ORIGINAL synth (sine + triangle) — NOT piano.
-    // Piano samples don't cover the bass register (MIDI 33-45) properly.
-    // The original synth bass sounded good, keeping it.
+
+    // If a bass soundfont is loaded, use it
+    if (this.soundfontManager?.isChannelReady('bass')) {
+      const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
+      const velocity = Math.min(1, volume * config.bassVolume)
+      this.soundfontManager.playNote('bass', midi, velocity, 1.5)
+      return
+    }
+
+    // Default: original synth bass (sine + triangle)
     const freq = midiToFreq(midi)
     const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
 

@@ -43,7 +43,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v5.3.0'  // fix 3D cropping (128px+auto-frame), fix MatterBot glitch
+  const GAME_VERSION = 'v5.4.0'  // fix 3D scale, fix instruments, fix stereo pad, scrollable chars
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -1217,7 +1217,7 @@ export default function GameCanvas({
             {/* Character grid — fills width */}
             <div className="w-full max-w-[340px] mb-3">
               <div className="text-[9px] uppercase tracking-[0.15em] text-white/40 font-bold text-center mb-1.5 text-outline-sm">Character</div>
-              <div className="grid grid-cols-4 gap-1.5">
+              <div className="grid grid-cols-4 gap-1.5 max-h-40 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.2) transparent' }}>
                 {(Object.keys(CHARACTER_NAMES) as CharacterType[]).map((type) => {
                   const isSelected = selectedCharacter === type
                   const accentHue = type === 'pip' ? 340 : type === 'pixel' ? 165 : type === 'mochi' ? 25 : type === 'yuki' ? 205 : type === 'kuro' ? 180 : type === 'bongo' ? 30 : type === 'popcat' ? 35 : type === 'neon' ? 290 : type === 'blob3d' ? 280 : type === 'cat3d' ? 20 : type === 'spark' ? 180 : 280

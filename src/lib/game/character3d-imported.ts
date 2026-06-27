@@ -72,7 +72,21 @@ export async function loadModel3D(type: Model3DType): Promise<Model3DState | nul
 
     // Normalize model: center it at origin and scale to fit
     const maxDim = Math.max(size.x, size.y, size.z)
-    const targetSize = 2.5  // target world-space size
+    if (maxDim === 0) {
+      console.warn(`3D model ${type} has zero size`)
+      return null
+    }
+
+    // Different target sizes per model type
+    // Fox is a long horizontal model — needs bigger scale
+    // Robot is tall — needs smaller scale
+    let targetSize: number
+    if (type === 'fox') {
+      targetSize = 4.0  // fox is small in world units, scale up
+    } else {
+      targetSize = 2.0  // robot is already reasonable size
+    }
+
     const scale = targetSize / maxDim
     model.scale.setScalar(scale)
 
@@ -81,10 +95,18 @@ export async function loadModel3D(type: Model3DType): Promise<Model3DState | nul
     const scaledCenter = scaledBox.getCenter(new THREE.Vector3())
     model.position.sub(scaledCenter)
 
-    // Position camera to frame the model nicely
-    camera.position.set(0, 0, targetSize * 1.8)
+    // Position camera based on model type
+    // Fox: side view (it's a horizontal animal)
+    // Robot: front view (it's a vertical humanoid)
+    if (type === 'fox') {
+      camera.position.set(0, 0, targetSize * 2.0)
+    } else {
+      camera.position.set(0, 0, targetSize * 1.6)
+    }
     camera.lookAt(0, 0, 0)
     camera.updateProjectionMatrix()
+
+    console.log(`3D model ${type}: size=${size.x.toFixed(1)}x${size.y.toFixed(1)}x${size.z.toFixed(1)} scale=${scale.toFixed(2)} target=${targetSize}`)
 
     // Set up animations
     const mixer = new THREE.AnimationMixer(model)
