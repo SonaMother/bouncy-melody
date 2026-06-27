@@ -122,8 +122,11 @@ export class MusicEngine {
     if (this.ctx) return
     try {
       const Ctor = (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)
+      console.log('MusicEngine.init: creating AudioContext...')
       this.ctx = new Ctor()
+      console.log('MusicEngine.init: ctx state:', this.ctx.state)
       await this.ctx.resume()
+      console.log('MusicEngine.init: ctx resumed, state:', this.ctx.state)
 
       // Master chain: masterGain -> masterFilter (lowpass) -> analyser -> destination
       this.masterGain = this.ctx.createGain()
@@ -184,7 +187,7 @@ export class MusicEngine {
       // Load real piano samples in background (for melody)
       this.initPiano()
     } catch (e) {
-      console.warn('MusicEngine init failed', e)
+      console.warn('MusicEngine init failed:', e?.message || e?.name || e)
     }
   }
 

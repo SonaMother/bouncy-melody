@@ -118,10 +118,10 @@ export class SoundfontManager {
     }
 
     try {
-      console.log(`Soundfont: loading ${instrumentId} for ${channel}, connecting to gain: ${ch.gain ? 'yes' : 'no'}`)
-      ch.instrument = Soundfont(this.ctx, { instrument: instrumentId })
-      ch.instrument.output.connect(ch.gain)
-      await ch.instrument.loaded
+      // Pass destination (gain node) directly in options — smplr routes output there
+      console.log(`Soundfont: loading ${instrumentId} for ${channel}, destination gain: ${ch.gain ? 'yes' : 'no'}`)
+      ch.instrument = Soundfont(this.ctx, { instrument: instrumentId, destination: ch.gain })
+      await ch.instrument.ready
       ch.name = instrumentId
       ch.ready = true
       ch.loading = false

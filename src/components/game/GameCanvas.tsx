@@ -43,7 +43,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v5.9.0'  // fix MIDI audio context, instrument loading from menu
+  const GAME_VERSION = 'v6.0.0'  // FIX: smplr Soundfont destination option (output.connect was not a function)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -348,8 +348,8 @@ export default function GameCanvas({
       const midi = new MidiKeyboard()
       const ok = await midi.init()
       if (ok) {
-        // Create music engine if needed
-        if (!musicRef.current) {
+        // Create music engine if needed — OR if previous init failed
+        if (!musicRef.current || !musicRef.current.ctx) {
           musicRef.current = new MusicEngine()
           await musicRef.current.init()
           if (musicRef.current.ctx) {
@@ -365,6 +365,7 @@ export default function GameCanvas({
 
   // Load a soundfont for a specific channel
   const loadChannelSoundfont = useCallback(async (channel: 'melody' | 'bass' | 'pad' | 'chord', instrumentId: string) => {
+    console.log('=== loadChannelSoundfont CALLED ===', { channel, instrumentId })
     // Update state immediately
     if (channel === 'melody') setMelodySoundfont(instrumentId)
     if (channel === 'bass') setBassSoundfont(instrumentId)
@@ -378,12 +379,14 @@ export default function GameCanvas({
       const { default: Tone } = await import('tone')
       await Tone.start()
     } catch {}
-    // Create music engine if needed
-    if (!musicRef.current) {
+    // Create music engine if needed — OR if previous init failed (ctx is null)
+    if (!musicRef.current || !musicRef.current.ctx) {
       musicRef.current = new MusicEngine()
       await musicRef.current.init()
       if (musicRef.current.ctx) {
         await musicRef.current.ctx.resume()
+      } else {
+        console.warn('loadChannelSoundfont: MusicEngine.init() failed — ctx is still null')
       }
     }
     if (instrumentId === '') {
