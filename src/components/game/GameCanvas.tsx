@@ -43,7 +43,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v5.2.0'  // MatterBot — TRUE physics ragdoll via Matter.js
+  const GAME_VERSION = 'v5.3.0'  // fix 3D cropping (128px+auto-frame), fix MatterBot glitch
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)

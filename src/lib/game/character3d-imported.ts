@@ -35,31 +35,26 @@ export async function loadModel3D(type: Model3DType): Promise<Model3DState | nul
 
   try {
     const scene = new THREE.Scene()
-    const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100)
-
-    // Position camera based on model type
-    if (type === 'fox') {
-      camera.position.set(0, 30, 70)
-      camera.lookAt(0, 10, 0)
-    } else {
-      camera.position.set(0, 1.5, 4)
-      camera.lookAt(0, 1, 0)
-    }
+    const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 1000)
 
     const renderer = new THREE.WebGLRenderer({
       alpha: true,
       antialias: true,
-      preserveDrawingBuffer: true,  // needed for drawImage compositing
+      preserveDrawingBuffer: true,
     })
-    renderer.setSize(64, 64)  // small sprite size
-    renderer.setClearColor(0x000000, 0)  // transparent background
+    renderer.setSize(128, 128)  // bigger canvas — was 64 (too small, cropped models)
+    renderer.setClearColor(0x000000, 0)
+    renderer.setPixelRatio(1)
 
     // Lighting
-    const ambient = new THREE.AmbientLight(0xffffff, 0.7)
+    const ambient = new THREE.AmbientLight(0xffffff, 0.8)
     scene.add(ambient)
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.5)
-    dirLight.position.set(2, 5, 3)
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2)
+    dirLight.position.set(3, 5, 4)
     scene.add(dirLight)
+    const fillLight = new THREE.DirectionalLight(0x8899ff, 0.4)
+    fillLight.position.set(-3, 2, -2)
+    scene.add(fillLight)
 
     // Load model
     const loader = new GLTFLoader()
@@ -70,12 +65,26 @@ export async function loadModel3D(type: Model3DType): Promise<Model3DState | nul
     const model = gltf.scene
     scene.add(model)
 
-    // Scale and position based on model type
-    if (type === 'fox') {
-      model.scale.set(0.8, 0.8, 0.8)
-    } else {
-      model.scale.set(1.2, 1.2, 1.2)
-    }
+    // Compute bounding box to properly frame the model
+    const box = new THREE.Box3().setFromObject(model)
+    const size = box.getSize(new THREE.Vector3())
+    const center = box.getCenter(new THREE.Vector3())
+
+    // Normalize model: center it at origin and scale to fit
+    const maxDim = Math.max(size.x, size.y, size.z)
+    const targetSize = 2.5  // target world-space size
+    const scale = targetSize / maxDim
+    model.scale.setScalar(scale)
+
+    // Re-center after scaling
+    const scaledBox = new THREE.Box3().setFromObject(model)
+    const scaledCenter = scaledBox.getCenter(new THREE.Vector3())
+    model.position.sub(scaledCenter)
+
+    // Position camera to frame the model nicely
+    camera.position.set(0, 0, targetSize * 1.8)
+    camera.lookAt(0, 0, 0)
+    camera.updateProjectionMatrix()
 
     // Set up animations
     const mixer = new THREE.AnimationMixer(model)

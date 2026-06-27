@@ -1994,25 +1994,21 @@ export function addTrailPoint(c: CharacterState, time: number) {
 // gravity, jumps, and impacts dynamically. No keyframe animations.
 
 let matterRagdoll: PhysicsRagdoll | null = null
-let matterLastX = 0
-let matterLastY = 0
+let matterLastCharType: string = ''
 
 function drawMatterBot(ctx: CanvasRenderingContext2D, c: CharacterState, time: number) {
-  // Create ragdoll if not exists or position changed significantly
-  if (!matterRagdoll) {
+  // Create new ragdoll if character type changed or first time
+  if (!matterRagdoll || matterLastCharType !== c.type) {
+    // Clean up old ragdoll
+    if (matterRagdoll) {
+      removeRagdoll(matterRagdoll)
+    }
     matterRagdoll = createRagdoll(c.x, c.y, 0.35)
-    matterLastX = c.x
-    matterLastY = c.y
+    matterLastCharType = c.type
   }
 
-  // Calculate velocity from position change
-  const vx = (c.x - matterLastX) * 60  // approximate px/s
-  const vy = (c.y - matterLastY) * 60
-  matterLastX = c.x
-  matterLastY = c.y
-
   // Update physics — sync ragdoll chest with character position
-  // The body parts will dynamically follow via physics constraints
+  // ONLY setPosition (no setVelocity — that caused the glitch)
   updateRagdollPhysics(matterRagdoll, c.x, c.y, c.vx, c.vy, 1/60)
 
   // Draw the ragdoll

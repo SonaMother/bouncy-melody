@@ -37,7 +37,11 @@ let physicsEngine: Matter.Engine | null = null
 function getEngine(): Matter.Engine {
   if (!physicsEngine) {
     physicsEngine = Engine.create()
-    physicsEngine.gravity.y = 0  // we handle gravity in the game loop, not physics
+    physicsEngine.gravity.y = 0  // game handles gravity, not physics
+    // More iterations = more stable constraints (less jitter)
+    physicsEngine.positionIterations = 8
+    physicsEngine.velocityIterations = 8
+    physicsEngine.constraintIterations = 3
   }
   return physicsEngine
 }
@@ -60,7 +64,7 @@ export function createRagdoll(x: number, y: number, scale: number = 0.4): Physic
 
   // Connect body parts with constraints (joints)
   // Lower stiffness = more floppy, higher = more rigid
-  const s = 0.4  // stiffness — cute bouncy, not death-ragdoll
+  const s = 0.6  // stiffness — tighter (was 0.4, caused too much flopping/glitching)
   const constraints = [
     // Head to chest
     Constraint.create({ bodyA: head, pointA: { x: 0, y: 20 * scale }, bodyB: chest, pointB: { x: 0, y: -35 * scale }, stiffness: 0.5, length: 2 }),
@@ -94,16 +98,15 @@ export function createRagdoll(x: number, y: number, scale: number = 0.4): Physic
 
 /** Update physics for a ragdoll — sync with game character position. */
 export function updateRagdollPhysics(ragdoll: PhysicsRagdoll, charX: number, charY: number, charVx: number, charVy: number, dt: number) {
-  // Move the chest to follow the character, let other parts follow via physics
   const chest = ragdoll.parts.chest
-  const targetX = charX
-  const targetY = charY
 
-  // Apply velocity to chest (this drives the whole body)
-  Body.setVelocity(chest, { x: charVx * 0.5, y: charVy * 0.3 })
-  Body.setPosition(chest, { x: targetX, y: targetY })
+  // ONLY set position — DON'T set velocity (that was causing the glitch).
+  // setPosition teleports the chest; the physics engine derives velocity
+  // from the position change. Constraints pull other body parts along.
+  // Setting BOTH setPosition and setVelocity caused fighting/jitter.
+  Body.setPosition(chest, { x: charX, y: charY })
 
-  // Update the physics engine
+  // Update the physics engine — let constraints handle the rest
   Engine.update(getEngine(), dt * 1000)
 }
 
