@@ -51,7 +51,7 @@ export const SOUNDFONT_OPTIONS: SoundfontOption[] = [
   { id: 'synth_bass_1', name: 'Synth Bass', category: 'Bass' },
 ]
 
-export type SoundfontChannel = 'melody' | 'bass' | 'pad'
+export type SoundfontChannel = 'melody' | 'bass' | 'pad' | 'chord'
 
 interface ChannelState {
   instrument: any
@@ -67,14 +67,22 @@ export class SoundfontManager {
     melody: { instrument: null, name: '', ready: false, loading: false, gain: null },
     bass: { instrument: null, name: '', ready: false, loading: false, gain: null },
     pad: { instrument: null, name: '', ready: false, loading: false, gain: null },
+    chord: { instrument: null, name: '', ready: false, loading: false, gain: null },
   }
   private activeChannel: SoundfontChannel = 'melody'  // for MIDI testing
 
-  setContext(ctx: AudioContext, melodyGain: GainNode, bassGain: GainNode, padGain: GainNode) {
+  setContext(ctx: AudioContext, melodyGain: GainNode, bassGain: GainNode, padGain: GainNode, chordGain?: GainNode) {
     this.ctx = ctx
     this.channels.melody.gain = melodyGain
     this.channels.bass.gain = bassGain
     this.channels.pad.gain = padGain
+    if (chordGain) this.channels.chord.gain = chordGain
+    else {
+      // Create a gain node for chord if not provided
+      this.channels.chord.gain = ctx.createGain()
+      this.channels.chord.gain.gain.value = 1.0
+      this.channels.chord.gain.connect(ctx.destination)
+    }
   }
 
   /** Set which channel MIDI keyboard controls (for testing). */

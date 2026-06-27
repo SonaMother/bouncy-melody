@@ -93,6 +93,7 @@ export class MusicEngine {
   // Soundfont manager — lets user select different instruments
   private soundfontManager: SoundfontManager | null = null
   private useSoundfontForMelody = false  // when true, soundfont replaces piano for melody
+  private activeMidiChannel: 'melody' | 'bass' | 'pad' | 'chord' = 'melody'  // stored locally
 
   // ---- Music state ----
   private progressionEngine: ProgressionEngine
@@ -569,9 +570,8 @@ export class MusicEngine {
   playMidiNote(midi: number, velocity: number) {
     // Try soundfont on active channel first
     if (this.soundfontManager) {
-      const activeCh = this.soundfontManager.getActiveChannel()
-      if (this.soundfontManager.isChannelReady(activeCh)) {
-        this.soundfontManager.playNoteOnActive(midi, velocity)
+      if (this.soundfontManager.isChannelReady(this.activeMidiChannel)) {
+        this.soundfontManager.playNote(this.activeMidiChannel, midi, velocity, 0.8)
         return
       }
     }
@@ -582,8 +582,8 @@ export class MusicEngine {
     }
   }
 
-  /** Load a soundfont instrument for a specific channel (melody/bass/pad). */
-  async loadSoundfont(channel: 'melody' | 'bass' | 'pad', instrumentId: string): Promise<boolean> {
+  /** Load a soundfont instrument for a specific channel (melody/bass/pad/chord). */
+  async loadSoundfont(channel: 'melody' | 'bass' | 'pad' | 'chord', instrumentId: string): Promise<boolean> {
     console.log(`MusicEngine.loadSoundfont: channel=${channel} instrument=${instrumentId}`)
     if (!this.ctx) {
       console.warn('loadSoundfont: no ctx')
@@ -606,8 +606,9 @@ export class MusicEngine {
   }
 
   /** Set which channel MIDI keyboard controls (for testing). */
-  setMidiActiveChannel(channel: 'melody' | 'bass' | 'pad') {
-    this.soundfontManager?.setActiveChannel(channel)
+  setMidiActiveChannel(channel: 'melody' | 'bass' | 'pad' | 'chord') {
+    this.activeMidiChannel = channel  // store locally
+    this.soundfontManager?.setActiveChannel(channel)  // also forward to manager
   }
 
   /** Play a note from MIDI keyboard on the active channel. */
@@ -628,7 +629,7 @@ export class MusicEngine {
   }
 
   /** Disable soundfont for a channel. */
-  disableSoundfontChannel(channel: 'melody' | 'bass' | 'pad') {
+  disableSoundfontChannel(channel: 'melody' | 'bass' | 'pad' | 'chord') {
     this.soundfontManager?.loadInstrument(channel, '')
     if (channel === 'melody') this.useSoundfontForMelody = false
   }
@@ -916,7 +917,7 @@ export class MusicEngine {
     const t = time ?? this.ctx.currentTime
 
     // If soundfont is loaded for melody, use it
-    if (this.useSoundfontForMelody && this.soundfontManager?.isChannelReady('melody')) {
+    if (this.soundfontManager?.isChannelReady('melody')) {
       const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
       const velocity = Math.min(1, volume * config.melodyVolume)
       this.soundfontManager.playNote('melody', midi, velocity, 0.5)
@@ -1038,6 +1039,17 @@ export class MusicEngine {
     const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
     const notesToPlay = tones.slice(0, Math.min(4, tones.length))
     const t = time ?? this.ctx.currentTime
+
+    // If a chord soundfont is loaded, use it
+    if (this.soundfontManager?.isChannelReady('chord')) {
+      for (let i = 0; i < notesToPlay.length; i++) {
+        const note = chord.root + notesToPlay[i] + 12
+        this.soundfontManager.playNote('chord', note, config.chordStabVolume, 1.0)
+      }
+      return
+    }
+
+    // Default: synth chord stab
     for (let i = 0; i < notesToPlay.length; i++) {
       const note = chord.root + notesToPlay[i] + 12
       this.scheduleRhodesNote(note, t, 1.4, config.chordStabVolume, true)

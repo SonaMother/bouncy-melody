@@ -43,7 +43,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v5.7.0'  // fix fox scale (Y-based), instrument diagnostics, fighter colors
+  const GAME_VERSION = 'v5.8.0'  // fix MIDI instruments, melody soundfont, add chord layer, fox scale
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -107,8 +107,9 @@ export default function GameCanvas({
   const [melodySoundfont, setMelodySoundfont] = useState<string>('')
   const [bassSoundfont, setBassSoundfont] = useState<string>('')
   const [padSoundfont, setPadSoundfont] = useState<string>('')
+  const [chordSoundfont, setChordSoundfont] = useState<string>('')
   const [soundfontLoading, setSoundfontLoading] = useState<boolean>(false)
-  const [activeMidiChannel, setActiveMidiChannel] = useState<'melody' | 'bass' | 'pad'>('melody')
+  const [activeMidiChannel, setActiveMidiChannel] = useState<'melody' | 'bass' | 'pad' | 'chord'>('melody')
   const [currentSubtitle, setCurrentSubtitle] = useState<string>('')
   const [subtitleTimer, setSubtitleTimer] = useState<number>(0)
   // Use fixed defaults to avoid hydration mismatch — localStorage loaded in useEffect after mount
@@ -355,11 +356,12 @@ export default function GameCanvas({
   }, [midiEnabled])
 
   // Load a soundfont for a specific channel
-  const loadChannelSoundfont = useCallback(async (channel: 'melody' | 'bass' | 'pad', instrumentId: string) => {
+  const loadChannelSoundfont = useCallback(async (channel: 'melody' | 'bass' | 'pad' | 'chord', instrumentId: string) => {
     // Update state immediately
     if (channel === 'melody') setMelodySoundfont(instrumentId)
     if (channel === 'bass') setBassSoundfont(instrumentId)
     if (channel === 'pad') setPadSoundfont(instrumentId)
+    if (channel === 'chord') setChordSoundfont(instrumentId)
     if (typeof window !== 'undefined') localStorage.setItem(`bouncy-sf-${channel}`, instrumentId)
     // Set this as active MIDI channel for testing
     setActiveMidiChannel(channel)
@@ -544,6 +546,8 @@ export default function GameCanvas({
     if (storedBassSf) setBassSoundfont(storedBassSf)
     const storedPadSf = localStorage.getItem('bouncy-sf-pad')
     if (storedPadSf) setPadSoundfont(storedPadSf)
+    const storedChordSf = localStorage.getItem('bouncy-sf-chord')
+    if (storedChordSf) setChordSoundfont(storedChordSf)
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
     // Auto-hide splash after 2.5 seconds
@@ -864,6 +868,7 @@ export default function GameCanvas({
         music.loadSoundfont("melody", melodySoundfont)
       if (bassSoundfont) music.loadSoundfont("bass", bassSoundfont)
       if (padSoundfont) music.loadSoundfont("pad", padSoundfont)
+      if (chordSoundfont) music.loadSoundfont("chord", chordSoundfont)
       }
       setStarted(true)
     } else {
@@ -878,6 +883,7 @@ export default function GameCanvas({
         music.loadSoundfont("melody", melodySoundfont)
       if (bassSoundfont) music.loadSoundfont("bass", bassSoundfont)
       if (padSoundfont) music.loadSoundfont("pad", padSoundfont)
+      if (chordSoundfont) music.loadSoundfont("chord", chordSoundfont)
       }
       music.reset()
       music.start()
@@ -1479,6 +1485,34 @@ export default function GameCanvas({
                             className="w-full rounded px-1 py-0.5 text-[7px] bg-black/50 text-white border border-white/20 mt-0.5"
                           >
                             <option value="">🎵 Hammond Organ (default)</option>
+                            {SOUNDFONT_OPTIONS.map(sf => (
+                              <option key={sf.id} value={sf.id}>{sf.category} — {sf.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        {/* Chord instrument */}
+                        <div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => {
+                                setActiveMidiChannel('chord')
+                                musicRef.current?.setMidiActiveChannel('chord')
+                              }}
+                              className="text-[7px] px-1 py-0.5 rounded"
+                              style={{
+                                background: activeMidiChannel === 'chord' ? 'hsl(140, 70%, 35%)' : 'rgba(15,10,25,0.6)',
+                                border: activeMidiChannel === 'chord' ? '1px solid hsl(140,80%,55%)' : '1px solid rgba(255,255,255,0.1)',
+                                color: activeMidiChannel === 'chord' ? 'white' : 'rgba(255,255,255,0.4)',
+                              }}
+                            >MIDI</button>
+                            <span className="text-[7px] text-white/60">Chord Stab</span>
+                          </div>
+                          <select
+                            value={chordSoundfont}
+                            onChange={(e) => loadChannelSoundfont('chord', e.target.value)}
+                            className="w-full rounded px-1 py-0.5 text-[7px] bg-black/50 text-white border border-white/20 mt-0.5"
+                          >
+                            <option value="">🎵 Rhodes Synth (default)</option>
                             {SOUNDFONT_OPTIONS.map(sf => (
                               <option key={sf.id} value={sf.id}>{sf.category} — {sf.name}</option>
                             ))}
