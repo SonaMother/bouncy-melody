@@ -47,7 +47,7 @@ const BASS_MIN   = 33  // A1
 const BASS_MAX   = 45  // A2
 
 export class MusicEngine {
-  private ctx: AudioContext | null = null
+  ctx: AudioContext | null = null  // public for external resume() calls
   private masterGain: GainNode | null = null
   private masterFilter: BiquadFilterNode | null = null
   private reverbBus: GainNode | null = null

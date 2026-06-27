@@ -43,7 +43,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v5.8.0'  // fix MIDI instruments, melody soundfont, add chord layer, fox scale
+  const GAME_VERSION = 'v5.9.0'  // fix MIDI audio context, instrument loading from menu
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -340,13 +340,21 @@ export default function GameCanvas({
       midiRef.current = null
       setMidiEnabled(false)
     } else {
+      // Start audio context FIRST (browser requires user gesture)
+      try {
+        const { default: Tone } = await import('tone')
+        await Tone.start()
+      } catch {}
       const midi = new MidiKeyboard()
       const ok = await midi.init()
       if (ok) {
-        // If music engine exists, connect. If not, create a minimal one for MIDI testing.
+        // Create music engine if needed
         if (!musicRef.current) {
           musicRef.current = new MusicEngine()
           await musicRef.current.init()
+          if (musicRef.current.ctx) {
+            await musicRef.current.ctx.resume()
+          }
         }
         midi.setMusicEngine(musicRef.current)
         midiRef.current = midi
@@ -365,10 +373,18 @@ export default function GameCanvas({
     if (typeof window !== 'undefined') localStorage.setItem(`bouncy-sf-${channel}`, instrumentId)
     // Set this as active MIDI channel for testing
     setActiveMidiChannel(channel)
-    // Create music engine if needed (so instruments work from menu, not just in-game)
+    // Start audio context FIRST (browser requires user gesture — dropdown click counts)
+    try {
+      const { default: Tone } = await import('tone')
+      await Tone.start()
+    } catch {}
+    // Create music engine if needed
     if (!musicRef.current) {
       musicRef.current = new MusicEngine()
       await musicRef.current.init()
+      if (musicRef.current.ctx) {
+        await musicRef.current.ctx.resume()
+      }
     }
     if (instrumentId === '') {
       musicRef.current.disableSoundfontChannel(channel)
@@ -377,6 +393,10 @@ export default function GameCanvas({
     setSoundfontLoading(true)
     await musicRef.current.loadSoundfont(channel, instrumentId)
     musicRef.current.setMidiActiveChannel(channel)
+    // Update MIDI keyboard if connected
+    if (midiRef.current) {
+      midiRef.current.setMusicEngine(musicRef.current)
+    }
     setSoundfontLoading(false)
   }, [])
   useEffect(() => {
