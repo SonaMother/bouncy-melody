@@ -19,8 +19,8 @@ const GW = 16  // grid width
 const GH = 20  // grid height
 
 // Color palette — martial artist in gi (white outfit, black belt, red headband)
-const P = {
-  T: 'T',           // transparent
+const P: Record<string, string> = {
+  T: 'transparent',
   K: '#1a1a1a',     // outline/black
   W: '#f5f5f5',     // gi white
   G: '#d0d0d0',     // gi gray (shading)
@@ -180,9 +180,10 @@ export function drawFighter(ctx: CanvasRenderingContext2D, c: CharacterState, ti
 
   for (let y = 0; y < grid.length; y++) {
     for (let x = 0; x < grid[y].length; x++) {
-      const color = grid[y][x]
-      if (color === 'T') continue
-      ctx.fillStyle = color
+      const code = grid[y][x]
+      const resolved = P[code]
+      if (!resolved || resolved === 'transparent') continue
+      ctx.fillStyle = resolved
       ctx.fillRect(offsetX + x * PS, offsetY + y * PS, PS, PS)
     }
   }

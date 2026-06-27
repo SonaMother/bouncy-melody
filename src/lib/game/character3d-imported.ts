@@ -82,9 +82,9 @@ export async function loadModel3D(type: Model3DType): Promise<Model3DState | nul
     // Robot is tall — needs smaller scale
     let targetSize: number
     if (type === 'fox') {
-      targetSize = 4.0  // fox is small in world units, scale up
+      targetSize = 6.0  // fox is very small in world units, needs big scale
     } else {
-      targetSize = 2.0  // robot is already reasonable size
+      targetSize = 2.5  // robot is reasonable size
     }
 
     const scale = targetSize / maxDim
@@ -129,7 +129,7 @@ export async function loadModel3D(type: Model3DType): Promise<Model3DState | nul
     }
 
     modelCache.set(type, state)
-    console.log(`3D model loaded: ${type} (${Object.keys(animations).length} animations)`)
+    console.log(`3D model loaded: ${type} (${Object.keys(animations).length} animations: ${Object.keys(animations).join(', ')})`)
     return state
   } catch (e) {
     console.warn(`Failed to load 3D model ${type}:`, e)

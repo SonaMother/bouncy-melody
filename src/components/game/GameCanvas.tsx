@@ -43,7 +43,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v5.5.0'  // Fighter character (SF-style pixel art), all fixes applied
+  const GAME_VERSION = 'v5.6.0'  // fix instruments (create engine), fix fighter colors, bigger fox, no mouse
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -363,7 +363,11 @@ export default function GameCanvas({
     if (typeof window !== 'undefined') localStorage.setItem(`bouncy-sf-${channel}`, instrumentId)
     // Set this as active MIDI channel for testing
     setActiveMidiChannel(channel)
-    if (!musicRef.current) return
+    // Create music engine if needed (so instruments work from menu, not just in-game)
+    if (!musicRef.current) {
+      musicRef.current = new MusicEngine()
+      await musicRef.current.init()
+    }
     if (instrumentId === '') {
       musicRef.current.disableSoundfontChannel(channel)
       return
@@ -605,20 +609,12 @@ export default function GameCanvas({
       if (state) state.inputDir = 0
     }
 
-    function handleMouseMove(e: MouseEvent) {
-      const state = stateRef.current
-      if (!state || state.phase !== 'playing') return
-      const rect = canvas!.getBoundingClientRect()
-      const relX = e.clientX - rect.left
-      const w = rect.width
-      // Mouse: control direction by position
-      const center = w / 2
-      const dist = relX - center
-      state.inputDir = Math.max(-1, Math.min(1, dist / (w * 0.3)))
+    // Mouse control DISABLED by default — can be re-enabled in settings
+    function handleMouseMove(_e: MouseEvent) {
+      // No-op — mouse control disabled
     }
     function handleMouseLeave() {
-      const state = stateRef.current
-      if (state) state.inputDir = 0
+      // No-op — mouse control disabled
     }
 
     function handleKey(e: KeyboardEvent) {
