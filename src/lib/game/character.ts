@@ -24,6 +24,7 @@ import { drawRagdoll } from './character-ragdoll'
 import { drawGeometric } from './character-geometric'
 import { drawShadow } from './character-shadow'
 import { loadModel3D, renderModel3D, type Model3DState } from './character3d-imported'
+import { createRagdoll, updateRagdollPhysics, drawPhysicsRagdoll, removeRagdoll, type PhysicsRagdoll } from './character-matter-ragdoll'
 
 export function drawCharacter(ctx: CanvasRenderingContext2D, c: CharacterState, time: number) {
   // 3D characters use a separate rendering engine
@@ -80,6 +81,12 @@ export function drawCharacter(ctx: CanvasRenderingContext2D, c: CharacterState, 
     return
   }
 
+  // MatterBot — TRUE physics ragdoll via Matter.js
+  if (c.type === 'matterbot') {
+    drawMatterBot(ctx, c, time)
+    return
+  }
+
   ctx.save()
   ctx.translate(c.x, c.y)
   ctx.rotate(c.rotation)
@@ -129,6 +136,7 @@ function getCharacterBaseHue(type: CharacterType): number {
     case 'shadow': return 270 // purple (shadow)
     case 'fox3d': return 25 // orange (fox)
     case 'robot3d': return 210 // blue (robot)
+    case 'matterbot': return 25 // orange (matter physics)
     default:       return 340 // fallback pink
   }
 }
@@ -1979,6 +1987,37 @@ export function addTrailPoint(c: CharacterState, time: number) {
   const hue = baseHue + Math.sin(time * 0.5) * 20
   c.trail.push({ x: c.x, y: c.y, life: 0.4, size: c.w * 0.35, hue })
   if (c.trail.length > 20) c.trail.shift()
+}
+
+// ===== Matter.js Physics Ragdoll Character =====
+// TRUE physics ragdoll — body parts connected by constraints, react to
+// gravity, jumps, and impacts dynamically. No keyframe animations.
+
+let matterRagdoll: PhysicsRagdoll | null = null
+let matterLastX = 0
+let matterLastY = 0
+
+function drawMatterBot(ctx: CanvasRenderingContext2D, c: CharacterState, time: number) {
+  // Create ragdoll if not exists or position changed significantly
+  if (!matterRagdoll) {
+    matterRagdoll = createRagdoll(c.x, c.y, 0.35)
+    matterLastX = c.x
+    matterLastY = c.y
+  }
+
+  // Calculate velocity from position change
+  const vx = (c.x - matterLastX) * 60  // approximate px/s
+  const vy = (c.y - matterLastY) * 60
+  matterLastX = c.x
+  matterLastY = c.y
+
+  // Update physics — sync ragdoll chest with character position
+  // The body parts will dynamically follow via physics constraints
+  updateRagdollPhysics(matterRagdoll, c.x, c.y, c.vx, c.vy, 1/60)
+
+  // Draw the ragdoll
+  const isHurt = c.mood === 'hurt'
+  drawPhysicsRagdoll(ctx, matterRagdoll, isHurt)
 }
 
 // ===== Imported 3D Character Rendering =====

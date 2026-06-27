@@ -43,7 +43,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v5.1.0'  // 3D imported characters: Fox (CC0) + Robot (CC-BY)
+  const GAME_VERSION = 'v5.2.0'  // MatterBot — TRUE physics ragdoll via Matter.js
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -2103,6 +2103,25 @@ function CharacterPreview({ type }: { type: CharacterType }) {
         {type === 'robot3d' && (
           <div style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ width: 28, height: 28, borderRadius: '20%', background: 'linear-gradient(135deg, #4a90d9, #2a5a8a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>🤖</div>
+          </div>
+        )}
+        {type === 'matterbot' && (
+          <div style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ position: 'relative', width: 20, height: 28 }}>
+              {/* Head */}
+              <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 10, height: 10, borderRadius: '30%', background: '#f5d0b0', border: '1px solid #c4621e' }}>
+                <div style={{ position: 'absolute', top: 3, left: 2, width: 2, height: 2, borderRadius: '50%', background: '#1a1a2e' }} />
+                <div style={{ position: 'absolute', top: 3, right: 2, width: 2, height: 2, borderRadius: '50%', background: '#1a1a2e' }} />
+              </div>
+              {/* Body */}
+              <div style={{ position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)', width: 14, height: 12, borderRadius: '20%', background: '#e87b3a', border: '1px solid #c4621e' }} />
+              {/* Arms (floppy) */}
+              <div style={{ position: 'absolute', top: 11, left: 0, width: 4, height: 8, borderRadius: '30%', background: '#e87b3a', transform: 'rotate(-15deg)' }} />
+              <div style={{ position: 'absolute', top: 11, right: 0, width: 4, height: 8, borderRadius: '30%', background: '#e87b3a', transform: 'rotate(15deg)' }} />
+              {/* Legs (floppy) */}
+              <div style={{ position: 'absolute', top: 21, left: 4, width: 4, height: 6, borderRadius: '30%', background: '#c4621e', transform: 'rotate(-10deg)' }} />
+              <div style={{ position: 'absolute', top: 21, right: 4, width: 4, height: 6, borderRadius: '30%', background: '#c4621e', transform: 'rotate(10deg)' }} />
+            </div>
           </div>
         )}
       </motion.div>
