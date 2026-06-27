@@ -43,7 +43,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v5.6.0'  // fix instruments (create engine), fix fighter colors, bigger fox, no mouse
+  const GAME_VERSION = 'v5.7.0'  // fix fox scale (Y-based), instrument diagnostics, fighter colors
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)

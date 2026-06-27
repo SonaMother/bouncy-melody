@@ -584,8 +584,17 @@ export class MusicEngine {
 
   /** Load a soundfont instrument for a specific channel (melody/bass/pad). */
   async loadSoundfont(channel: 'melody' | 'bass' | 'pad', instrumentId: string): Promise<boolean> {
-    if (!this.ctx || !this.melodyGain || !this.bassGain || !this.padGain) return false
+    console.log(`MusicEngine.loadSoundfont: channel=${channel} instrument=${instrumentId}`)
+    if (!this.ctx) {
+      console.warn('loadSoundfont: no ctx')
+      return false
+    }
+    if (!this.melodyGain || !this.bassGain || !this.padGain) {
+      console.warn('loadSoundfont: missing gain nodes', !!this.melodyGain, !!this.bassGain, !!this.padGain)
+      return false
+    }
     if (!this.soundfontManager) {
+      console.log('loadSoundfont: creating SoundfontManager')
       this.soundfontManager = new SoundfontManager()
       this.soundfontManager.setContext(this.ctx, this.melodyGain, this.bassGain, this.padGain)
     }

@@ -78,16 +78,22 @@ export async function loadModel3D(type: Model3DType): Promise<Model3DState | nul
     }
 
     // Different target sizes per model type
-    // Fox is a long horizontal model — needs bigger scale
-    // Robot is tall — needs smaller scale
     let targetSize: number
+    let scaleDim: 'x' | 'y' | 'z'  // which dimension to use for scaling
     if (type === 'fox') {
-      targetSize = 6.0  // fox is very small in world units, needs big scale
+      targetSize = 3.0
+      scaleDim = 'y'  // fox is very long in Z (tail), use height (Y) for scaling
     } else {
-      targetSize = 2.5  // robot is reasonable size
+      targetSize = 2.5
+      scaleDim = 'y'  // use height for humanoid too
     }
 
-    const scale = targetSize / maxDim
+    const refDim = size[scaleDim]
+    if (refDim === 0) {
+      console.warn(`3D model ${type} has zero ${scaleDim} size`)
+      return null
+    }
+    const scale = targetSize / refDim
     model.scale.setScalar(scale)
 
     // Re-center after scaling

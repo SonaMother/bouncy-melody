@@ -87,7 +87,10 @@ export class SoundfontManager {
   async loadInstrument(channel: SoundfontChannel, instrumentId: string): Promise<boolean> {
     if (!this.ctx) return false
     const ch = this.channels[channel]
-    if (!ch.gain) return false
+    if (!ch.gain) {
+      console.warn(`Soundfont: channel ${channel} has no gain node — setContext not called?`)
+      return false
+    }
     if (ch.loading) return false
     if (ch.name === instrumentId && ch.ready) return true
 
@@ -107,6 +110,7 @@ export class SoundfontManager {
     }
 
     try {
+      console.log(`Soundfont: loading ${instrumentId} for ${channel}, connecting to gain: ${ch.gain ? 'yes' : 'no'}`)
       ch.instrument = Soundfont(this.ctx, { instrument: instrumentId })
       ch.instrument.output.connect(ch.gain)
       await ch.instrument.loaded
@@ -116,7 +120,7 @@ export class SoundfontManager {
       console.log(`Soundfont loaded: ${instrumentId} for ${channel}`)
       return true
     } catch (e) {
-      console.warn(`Failed to load soundfont ${instrumentId}`, e)
+      console.warn(`Failed to load soundfont ${instrumentId} for ${channel}:`, e)
       ch.loading = false
       return false
     }
