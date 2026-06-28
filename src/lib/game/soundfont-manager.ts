@@ -107,7 +107,7 @@ export class SoundfontManager {
 
     // Dispose old instrument
     if (ch.instrument) {
-      try { ch.instrument.output.disconnect() } catch {}
+      try { ch.instrument.dispose() } catch {}
       ch.instrument = null
     }
 
@@ -156,7 +156,7 @@ export class SoundfontManager {
   dispose() {
     for (const ch of Object.values(this.channels)) {
       if (ch.instrument) {
-        try { ch.instrument.output.disconnect() } catch {}
+        try { ch.instrument.dispose() } catch {}
         ch.instrument = null
       }
       ch.ready = false
