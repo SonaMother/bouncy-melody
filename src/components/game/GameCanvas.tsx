@@ -43,7 +43,7 @@ export default function GameCanvas({
   onHeightChange,
   onBestChange,
 }: GameCanvasProps) {
-  const GAME_VERSION = 'v6.0.0'  // FIX: smplr Soundfont destination option (output.connect was not a function)
+  const GAME_VERSION = 'v6.1.0'  // fix stop/start lifecycle — don't destroy soundfonts on stop
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<GameState | null>(null)
@@ -886,13 +886,11 @@ export default function GameCanvas({
       // Apply stored volumes NOW (gain nodes exist after init)
       music.applyStoredVolumes()
       music.start()
-      // Apply saved soundfont if any
-      if (melodySoundfont) {
-        music.loadSoundfont("melody", melodySoundfont)
+      // Apply saved soundfonts (all 4 channels independently)
+      if (melodySoundfont) music.loadSoundfont("melody", melodySoundfont)
       if (bassSoundfont) music.loadSoundfont("bass", bassSoundfont)
       if (padSoundfont) music.loadSoundfont("pad", padSoundfont)
       if (chordSoundfont) music.loadSoundfont("chord", chordSoundfont)
-      }
       setStarted(true)
     } else {
       // Restart: just resume Tone's context
@@ -902,12 +900,11 @@ export default function GameCanvas({
       } catch {}
       music.setGenre(selectedGenre)
       music.applyStoredVolumes()
-      if (melodySoundfont) {
-        music.loadSoundfont("melody", melodySoundfont)
+      // Re-apply soundfonts (all 4 channels independently)
+      if (melodySoundfont) music.loadSoundfont("melody", melodySoundfont)
       if (bassSoundfont) music.loadSoundfont("bass", bassSoundfont)
       if (padSoundfont) music.loadSoundfont("pad", padSoundfont)
       if (chordSoundfont) music.loadSoundfont("chord", chordSoundfont)
-      }
       music.reset()
       music.start()
     }

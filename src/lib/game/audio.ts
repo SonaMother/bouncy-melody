@@ -352,47 +352,44 @@ export class MusicEngine {
 
   start() {
     if (!this.ctx || this.running) return
-    // Resume context if it was suspended (after stop())
+    // Resume context if it was suspended
     if (this.ctx.state === 'suspended') {
       this.ctx.resume().catch(() => {})
     }
     this.running = true
     this.resetState()
     const config = GENRE_CONFIGS[this.progressionEngine.getGenre()]
-    // Restore master gain (was faded to 0 on stop)
+    // Restore master gain (was set to 0 by stop())
     if (this.ctx && this.masterGain) {
       const t = this.ctx.currentTime
       this.masterGain.gain.cancelScheduledValues(t)
       this.masterGain.gain.setValueAtTime(0, t)
-      this.masterGain.gain.linearRampToValueAtTime(this.muted ? 0 : 0.7, t + 2.0)
+      this.masterGain.gain.linearRampToValueAtTime(this.muted ? 0 : 0.7, t + 1.0)
     }
+    this.applyStoredVolumes()
     this.setPadVolume(config.padVolume)
   }
 
   stop() {
     this.running = false
-    // HARD STOP — kill everything instantly
+    // HARD STOP — mute everything but DON'T destroy instruments
     if (this.ctx) {
       const t = this.ctx.currentTime
-      // Set master gain to 0 INSTANTLY (no fade — user wants hard stop)
       this.masterGain?.gain.cancelScheduledValues(t)
       this.masterGain?.gain.setValueAtTime(0, t)
-      // Mute ALL pad voices
       for (const voice of this.padVoices) {
         voice.gain.gain.cancelScheduledValues(t)
         voice.gain.gain.setValueAtTime(0, t)
       }
     }
-    // Stop piano notes
+    // Stop piano notes (but don't destroy the piano)
     if (this.piano) {
       try { this.piano.releaseAll?.() } catch {}
     }
-    // Stop soundfont
-    if (this.soundfontManager) {
-      this.soundfontManager.dispose()
-    }
-    // Suspend the audio context — kills ALL processing
-    this.ctx?.suspend().catch(() => {})
+    // DON'T dispose soundfontManager — just mark as not running
+    // The instruments stay loaded so they work on restart
+    // DON'T suspend the AudioContext — just mute via masterGain=0
+    // (suspending breaks Tone.js piano and soundfonts on resume)
   }
 
   /** Reset musical state to the tonic of the starting key. */
